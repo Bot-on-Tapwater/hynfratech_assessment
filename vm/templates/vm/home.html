@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+  </head>
+  <body>
+    <h2>Home</h2>
+    {% if user.role == 'Admin' %}
+    <p>Welcome, Admin! You can create, update, and delete VMs here.</p>
+    {% elif user.role == 'Standard User' %}
+    <p>
+      Welcome, Standard User! Manage your VMs and view billing information here.
+    </p>
+    {% else %}
+    <p>Welcome, Guest! View available services here.</p>
+    {% endif %}
+  </body>
+</html>
