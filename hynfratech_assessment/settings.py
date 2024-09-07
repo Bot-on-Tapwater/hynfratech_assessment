@@ -140,3 +140,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Media files directory
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Change django's default login url
+LOGIN_URL = '/vm/login/'
