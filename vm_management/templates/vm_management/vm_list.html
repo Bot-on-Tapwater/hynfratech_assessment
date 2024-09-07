@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>vm list</title>
+  </head>
+  <body>
+    <h1>Your VMs</h1>
+    <ul>
+      {% for vm in vms %}
+      <li>
+        {{ vm.name }} - {{ vm.status }} - {{ vm.disk_size }} MB
+        <a href="{% url 'delete_vm' vm.id %}">Delete</a>
+        <form method="post" action="{% url 'backup_vm' vm.id %}">
+          {% csrf_token %}
+          <button type="submit">Backup</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    <a href="{% url 'create_vm' %}">Create New VM</a>
+  </body>
+</html>

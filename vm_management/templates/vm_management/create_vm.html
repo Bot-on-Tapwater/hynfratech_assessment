@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create VM</title>
+  </head>
+  <body>
+    <form method="post">
+      {% csrf_token %}
+      <label for="name">VM Name:</label>
+      <input type="text" id="name" name="name" required /><br />
+      <label for="disk_size">Disk Size (MB):</label>
+      <input type="number" id="disk_size" name="disk_size" required /><br />
+      <button type="submit">Create VM</button>
+    </form>
+  </body>
+</html>
