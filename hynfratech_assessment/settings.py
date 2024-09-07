@@ -34,13 +34,14 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
-AUTH_USER_MODEL = 'vm.CustomUser'
+AUTH_USER_MODEL = 'accounts.CustomUser'
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'vm.apps.VmConfig', # Install vm application
+    'accounts.apps.AccountsConfig', # Install accounts application
+    'vm_management.apps.VmManagementConfig', # Install vm_management application
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -140,6 +141,3 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Media files directory
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# Change django's default login url
-LOGIN_URL = '/vm/login/'
