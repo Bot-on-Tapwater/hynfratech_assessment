@@ -1,6 +1,7 @@
+from datetime import datetime, timedelta, timezone
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .models import VM, ActionLog
+from .models import VM, ActionLog, Payment, Subscription
 import subprocess
 
 import logging
@@ -50,14 +51,25 @@ def vm_list(request):
 
 @login_required
 def create_vm(request):
+    user = request.user
+    # Check subscription and VM limits
+    subscription = Subscription.objects.get(user=user)
+    user_vms_count = VM.objects.filter(user=user).count()
+
+    if not subscription.active:
+        messages.error(request, "Your subscription is inactive. Please make a payment to create more VMs.")
+        return redirect('payment_page')
+
+    if user_vms_count >= subscription.max_vms:
+        messages.error(request, f"You've reached your VM creation limit of {subscription.max_vms} VMs.")
+        return redirect('vm_list')
+
     if request.method == 'POST':
         name = request.POST.get('name')
         disk_size = int(request.POST.get('disk_size'))
-        cpu = int(request.POST.get('cpu', 1))  # Default to 1 if not provided
-        memory = int(request.POST.get('memory', 1024))  # Default to 1024 MB if not provided
-        price = calculate_price(disk_size)
+        cpu = int(request.POST.get('cpu', 1))
+        memory = int(request.POST.get('memory', 1024))
 
-        # Use vboxmanage to create VM
         subprocess.run([
             'vboxmanage', 'createvm', '--name', name, '--register'
         ])
@@ -67,20 +79,14 @@ def create_vm(request):
         subprocess.run([
             'vboxmanage', 'createhd', '--filename', f'~/VirtualBox VMs/{name}/{name}.vdi', '--size', str(disk_size)
         ])
-        subprocess.run([
-            'vboxmanage', 'storagectl', name, '--name', 'SATA Controller', '--add', 'sata', '--controller', 'IntelAHCI'
-        ])
-        subprocess.run([
-            'vboxmanage', 'storageattach', name, '--storagectl', 'SATA Controller', '--port', '0', '--device', '0', '--type', 'hdd', '--medium', f'~/VirtualBox VMs/{name}/{name}.vdi'
-        ])
 
         vm = VM.objects.create(name=name, user=request.user, disk_size=disk_size, status='stopped', cpu=cpu, memory=memory)
-
         ActionLog.objects.create(action_type='create', vm=vm, user=request.user)
 
         return redirect('vm_list')
 
     return render(request, 'vm_management/create_vm.html')
+
 
 @login_required
 def configure_vm(request, vm_id):
@@ -279,3 +285,23 @@ def transfer_vm_view(request, vm_id):
     vm = VM.objects.get(id=vm_id)
     users = CustomUser.objects.exclude(id=vm.user.id)  # Exclude the current owner
     return render(request, 'vm_management/transfer_vm.html', {'vm': vm, 'users': users})
+
+@login_required
+def payment_page(request):
+    if request.method == 'POST':
+        amount = request.POST.get('amount')
+
+        # Create a mock payment and mark it as completed
+        payment = Payment.objects.create(user=request.user, amount=amount, status='completed')
+
+        # Activate user's subscription
+        subscription, created = Subscription.objects.get_or_create(user=request.user)
+        subscription.active = True
+        subscription.start_date = datetime.now()
+        subscription.end_date = datetime.now() + timedelta(days=30)  # Example: 1-month subscription
+        subscription.save()
+
+        messages.success(request, f"Payment successful! Subscription activated.")
+        return redirect('vm_list')
+
+    return render(request, 'vm_management/payment_page.html')
