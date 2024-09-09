@@ -63,13 +63,42 @@ class Payment(models.Model):
     def __str__(self):
         return f"Payment of {self.amount} by {self.user.username} - {self.status}"
 
+class RatePlan(models.Model):
+    PLAN_CHOICES = [
+        ('platinum', 'Platinum'),
+        ('gold', 'Gold'),
+        ('silver', 'Silver'),
+        ('bronze', 'Bronze'),
+    ]
+
+    name = models.CharField(max_length=20, choices=PLAN_CHOICES, unique=True)
+    max_vms = models.IntegerField()  # Maximum number of VMs allowed under this plan
+    max_backups = models.IntegerField()  # Maximum number of backups allowed
+    price = models.DecimalField(max_digits=10, decimal_places=2)  # Price of the plan
+
+    def __str__(self):
+        return f"{self.name.capitalize()} Plan"
+
 class Subscription(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    rate_plan = models.ForeignKey(RatePlan, on_delete=models.SET_NULL, null=True, blank=True)
     active = models.BooleanField(default=False)
     start_date = models.DateTimeField(null=True, blank=True)
     end_date = models.DateTimeField(null=True, blank=True)
-    max_vms = models.IntegerField(default=1)  # Limit of VMs a user can create with their subscription
+
+    parent_account = models.ForeignKey(CustomUser, related_name='managed_users', on_delete=models.SET_NULL, null=True, blank=True)
+    is_parent = models.BooleanField(default=False)  # Defines whether this account is a parent or child account
 
     def __str__(self):
-        return f"Subscription for {self.user.username}: {'Active' if self.active else 'Inactive'}"
+        return f"Subscription for {self.user.username}: {self.rate_plan.name if self.rate_plan else 'No Plan'}"
+
+    def can_create_vm(self):
+        # Check if the user can create more VMs based on their plan
+        user_vm_count = VM.objects.filter(user=self.user).count()
+        return user_vm_count < self.rate_plan.max_vms
+
+    def can_create_backup(self):
+        # Check if the user can create more backups based on their plan
+        user_backup_count = ActionLog.objects.filter(user=self.user, action_type='backup').count()
+        return user_backup_count < self.rate_plan.max_backups
 
