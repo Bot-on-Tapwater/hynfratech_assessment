@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import VM, ActionLog
+from .models import VM, ActionLog, Payment, Subscription
 from accounts.models import CustomUser  # Import CustomUser from accounts app
 
 @admin.register(VM)
@@ -24,3 +24,11 @@ class CustomUserAdmin(admin.ModelAdmin):
     list_filter = ('role',)
     search_fields = ('username', 'email')
     ordering = ('username',)
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ('user', 'amount', 'status', 'timestamp')
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ('user', 'active', 'start_date', 'end_date', 'max_vms')
