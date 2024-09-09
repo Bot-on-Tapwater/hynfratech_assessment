@@ -53,3 +53,23 @@ class ActionLog(models.Model):
             'user': self.user.username,  # Assuming you want the username instead of the user ID
             'timestamp': self.timestamp.isoformat(),
         }
+
+class Payment(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('completed', 'Completed')])
+
+    def __str__(self):
+        return f"Payment of {self.amount} by {self.user.username} - {self.status}"
+
+class Subscription(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    active = models.BooleanField(default=False)
+    start_date = models.DateTimeField(null=True, blank=True)
+    end_date = models.DateTimeField(null=True, blank=True)
+    max_vms = models.IntegerField(default=1)  # Limit of VMs a user can create with their subscription
+
+    def __str__(self):
+        return f"Subscription for {self.user.username}: {'Active' if self.active else 'Inactive'}"
+
