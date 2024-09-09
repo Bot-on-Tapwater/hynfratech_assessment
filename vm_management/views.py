@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .models import VM, ActionLog, Payment, Subscription
+from .models import VM, ActionLog, Payment, Subscription, RatePlan
 import subprocess
 
 import logging
@@ -53,23 +53,40 @@ def vm_list(request):
 def create_vm(request):
     user = request.user
     # Check subscription and VM limits
-    subscription = Subscription.objects.get(user=user)
-    user_vms_count = VM.objects.filter(user=user).count()
+    try:
+        subscription = Subscription.objects.get(user=user)
+    except Subscription.DoesNotExist:
+        messages.error(request, "You don't have an active subscription.")
+        return redirect('subscription_page')
 
+    # Check if the subscription is inactive
     if not subscription.active:
         messages.error(request, "Your subscription is inactive. Please make a payment to create more VMs.")
         return redirect('payment_page')
 
-    if user_vms_count >= subscription.max_vms:
-        messages.error(request, f"You've reached your VM creation limit of {subscription.max_vms} VMs.")
+    # Determine which user should have their limits applied (for multi-client accounts)
+    if subscription.parent_account:
+        parent_account = subscription.parent_account
+        user_vms_count = VM.objects.filter(user__in=parent_account.managed_users.all()).count()
+        plan_limit = parent_account.subscription.rate_plan.max_vms
+    else:
+        parent_account = None
+        user_vms_count = VM.objects.filter(user=user).count()
+        plan_limit = subscription.rate_plan.max_vms
+
+    # Check if user has reached their VM creation limit
+    if user_vms_count >= plan_limit:
+        messages.error(request, f"You've reached your VM creation limit of {plan_limit} VMs.")
         return redirect('vm_list')
 
+    # VM creation logic
     if request.method == 'POST':
         name = request.POST.get('name')
         disk_size = int(request.POST.get('disk_size'))
         cpu = int(request.POST.get('cpu', 1))
         memory = int(request.POST.get('memory', 1024))
 
+        # VM creation commands (VirtualBox in this case)
         subprocess.run([
             'vboxmanage', 'createvm', '--name', name, '--register'
         ])
@@ -80,6 +97,7 @@ def create_vm(request):
             'vboxmanage', 'createhd', '--filename', f'~/VirtualBox VMs/{name}/{name}.vdi', '--size', str(disk_size)
         ])
 
+        # Save VM in database
         vm = VM.objects.create(name=name, user=request.user, disk_size=disk_size, status='stopped', cpu=cpu, memory=memory)
         ActionLog.objects.create(action_type='create', vm=vm, user=request.user)
 
@@ -189,35 +207,35 @@ def vm_details(request, vm_id):
         return render(request, 'vm_management/vm_details.html', {'vm': vm, 'vm_details': vm_details})
     return redirect('vm_list')
 
-@login_required
-def configure_vm(request, vm_id):
-    vm = VM.objects.get(id=vm_id)
+# @login_required
+# def configure_vm(request, vm_id):
+#     vm = VM.objects.get(id=vm_id)
 
-    # Check the VM status
-    vm_status_output = subprocess.run(
-        ['vboxmanage', 'showvminfo', vm.name, '--machinereadable'], 
-        capture_output=True, text=True
-    )
+#     # Check the VM status
+#     vm_status_output = subprocess.run(
+#         ['vboxmanage', 'showvminfo', vm.name, '--machinereadable'], 
+#         capture_output=True, text=True
+#     )
 
-    if "VMState=\"running\"" in vm_status_output.stdout:
-        # If VM is running, stop it before making modifications
-        subprocess.run(['vboxmanage', 'controlvm', vm.name, 'poweroff'])
+#     if "VMState=\"running\"" in vm_status_output.stdout:
+#         # If VM is running, stop it before making modifications
+#         subprocess.run(['vboxmanage', 'controlvm', vm.name, 'poweroff'])
 
-    if request.method == 'POST':
-        # Get the configuration data from the form
-        new_memory = request.POST.get('memory')
-        new_cpu = request.POST.get('cpus')
+#     if request.method == 'POST':
+#         # Get the configuration data from the form
+#         new_memory = request.POST.get('memory')
+#         new_cpu = request.POST.get('cpus')
 
-        # Modify the VM configuration with the new values
-        subprocess.run([
-            'vboxmanage', 'modifyvm', vm.name, '--memory', new_memory, '--cpus', new_cpu
-        ])
+#         # Modify the VM configuration with the new values
+#         subprocess.run([
+#             'vboxmanage', 'modifyvm', vm.name, '--memory', new_memory, '--cpus', new_cpu
+#         ])
 
-        ActionLog.objects.create(action_type='configure', vm=vm, user=request.user)
+#         ActionLog.objects.create(action_type='configure', vm=vm, user=request.user)
 
-        return redirect('vm_list')
+#         return redirect('vm_list')
 
-    return render(request, 'vm_management/configure_vm.html', {'vm': vm})
+#     return render(request, 'vm_management/configure_vm.html', {'vm': vm})
 
 
 @login_required
@@ -288,20 +306,71 @@ def transfer_vm_view(request, vm_id):
 
 @login_required
 def payment_page(request):
+    rate_plans = RatePlan.objects.all()
+
     if request.method == 'POST':
         amount = request.POST.get('amount')
+        selected_plan_name = request.POST.get('plan')
+
+        try:
+            rate_plan = RatePlan.objects.get(name=selected_plan_name)
+        except RatePlan.DoesNotExist:
+            messages.error(request, "Invalid rate plan selected.")
+            return redirect('payment_page')
 
         # Create a mock payment and mark it as completed
         payment = Payment.objects.create(user=request.user, amount=amount, status='completed')
 
-        # Activate user's subscription
+        # Activate or update user's subscription
         subscription, created = Subscription.objects.get_or_create(user=request.user)
+        subscription.active = True
+        subscription.rate_plan = rate_plan  # Assign the selected rate plan
+        subscription.start_date = timezone.now()
+        subscription.end_date = timezone.now() + timedelta(days=30)  # Example: 1-month subscription
+        subscription.save()
+
+        messages.success(request, f"Payment successful! {rate_plan.name.capitalize()} Plan activated.")
+        return redirect('vm_list')
+
+    return render(request, 'vm_management/payment_page.html', {'rate_plans': rate_plans})
+
+@login_required
+def subscription_page(request):
+    rate_plans = RatePlan.objects.all()
+
+    if request.method == 'POST':
+        selected_plan = request.POST.get('plan')
+        rate_plan = RatePlan.objects.get(name=selected_plan)
+        
+        subscription, created = Subscription.objects.get_or_create(user=request.user)
+        subscription.rate_plan = rate_plan
         subscription.active = True
         subscription.start_date = datetime.now()
         subscription.end_date = datetime.now() + timedelta(days=30)  # Example: 1-month subscription
         subscription.save()
 
-        messages.success(request, f"Payment successful! Subscription activated.")
-        return redirect('vm_list')
+        messages.success(request, f"Subscription updated to {rate_plan.name.capitalize()} Plan.")
+        return redirect('subscription_page')
 
-    return render(request, 'vm_management/payment_page.html')
+    return render(request, 'vm_management/subscription_page.html', {'rate_plans': rate_plans})
+
+@login_required
+def manage_users(request):
+    if not request.user.subscription.is_parent:
+        messages.error(request, "You do not have permission to manage other users.")
+        return redirect('subscription_page')
+
+    # List users managed by this account
+    managed_users = Subscription.objects.filter(parent_account=request.user)
+
+    if request.method == 'POST':
+        child_user = CustomUser.objects.get(username=request.POST.get('child_username'))
+        child_subscription, created = Subscription.objects.get_or_create(user=child_user)
+        child_subscription.parent_account = request.user
+        child_subscription.active = True
+        child_subscription.save()
+
+        messages.success(request, f"{child_user.username} added to your account.")
+        return redirect('manage_users')
+
+    return render(request, 'vm_management/manage_users.html', {'managed_users': managed_users})
