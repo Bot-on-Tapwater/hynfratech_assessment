@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <h2>Manage Users</h2>
+    <ul>
+      {% for user in managed_users %}
+      <li>{{ user.user.username }} - Plan: {{ user.rate_plan.name }}</li>
+      {% endfor %}
+    </ul>
+
+    <form method="POST">
+      {% csrf_token %}
+      <label for="child_username">Add User:</label>
+      <input type="text" id="child_username" name="child_username" required />
+      <button type="submit">Add User</button>
+    </form>
+  </body>
+</html>

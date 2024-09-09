@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <form method="POST">
+      {% csrf_token %}
+      <h2>Select a Subscription Plan</h2>
+      {% for plan in rate_plans %}
+      <input
+        type="radio"
+        id="{{ plan.name }}"
+        name="plan"
+        value="{{ plan.name }}"
+      />
+      <label for="{{ plan.name }}"
+        >{{ plan.name|title }} Plan: {{ plan.price }} - {{ plan.max_vms }} VMs,
+        {{ plan.max_backups }} Backups</label
+      ><br />
+      {% endfor %}
+      <button type="submit">Update Subscription</button>
+    </form>
+  </body>
+</html>
