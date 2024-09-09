@@ -3,18 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>vm list</title>
+    <title>VM List</title>
   </head>
   <body>
     <h1>Your VMs</h1>
     <ul>
       {% for vm in vms %}
       <li>
-        {{ vm.name }} - {{ vm.status }} - {{ vm.disk_size }} MB
+        {{ vm.name }} - {{ vm.status }} - {{ vm.disk_size }} MB - {{ vm.cpu }}
+        CPU - {{ vm.memory }} MB RAM {{ vm.price }} USD
+        <a href="{% url 'configure_vm' vm.id %}">Configure</a>
+        <a href="{% url 'vm_details' vm.id %}">View Details</a>
         <a href="{% url 'delete_vm' vm.id %}">Delete</a>
         <form method="post" action="{% url 'backup_vm' vm.id %}">
           {% csrf_token %}
           <button type="submit">Backup</button>
+        </form>
+        <form method="get" action="{% url 'transfer_vm' vm.id %}">
+          {% csrf_token %}
+          <button type="submit">Transfer</button>
         </form>
       </li>
       {% endfor %}
