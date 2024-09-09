@@ -14,6 +14,11 @@ urlpatterns = [
     path('console/<int:vm_id>/', views.view_vm_console, name='view_vm_console'),
     path('transfer_vm/<int:vm_id>/', views.transfer_vm_view, name='transfer_vm'),
     path('payment/', views.payment_page, name='payment_page'),
+    # Subscription page to view/upgrade/downgrade plan
+    path('subscription/', views.subscription_page, name='subscription_page'),
+
+    # Manage child users
+    path('manage-users/', views.manage_users, name='manage_users'),
 ]
 
 
