@@ -1,9 +1,15 @@
-from django.http import HttpRequest, JsonResponse
+import os
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth.decorators import login_required
+import requests
 from .forms import CustomUserCreationForm, LoginForm
 from .models import UserRole
+from django.views.decorators.csrf import csrf_exempt
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from django.conf import settings
 
 def register(request):
     if request.method == 'POST':
@@ -41,3 +47,24 @@ def home(request):
         # Guest-specific logic
         pass
     return render(request, 'accounts/home.html')
+
+@csrf_exempt
+def google_complete(request):
+    """
+    Google calls this URL after the user has signed in with their Google account.
+    """
+    print('Inside')
+    token = request.POST['credential']
+
+    try:
+        user_data = id_token.verify_oauth2_token(
+            token, requests.Request(), settings.GOOGLE_OAUTH_CLIENT_ID
+        )
+    except ValueError:
+        return HttpResponse(status=403)
+
+    # In a real app, I'd also save any new user here to the database.
+    # You could also authenticate the user here using the details from Google (https://docs.djangoproject.com/en/4.2/topics/auth/default/#how-to-log-a-user-in)
+    request.session['user_data'] = user_data
+
+    return redirect('login')
