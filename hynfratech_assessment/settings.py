@@ -171,3 +171,14 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+
+# SSO
+GOOGLE_OAUTH_CLIENT_ID = os.environ.get('SOCIAL_AUTH_GOOGLE_OAUTH2_KEY')
+if not GOOGLE_OAUTH_CLIENT_ID:
+    raise ValueError(
+        'GOOGLE_OAUTH_CLIENT_ID is missing.'
+    )
+
+# We need these lines below to allow the Google sign in popup to work.
+SECURE_REFERRER_POLICY = 'no-referrer-when-downgrade'
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
