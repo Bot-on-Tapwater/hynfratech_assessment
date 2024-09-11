@@ -40,6 +40,8 @@ AUTH_USER_MODEL = 'accounts.CustomUser'
 # Application definition
 
 INSTALLED_APPS = [
+    'rest_framework',
+    'rest_framework_simplejwt',
     'accounts.apps.AccountsConfig', # Install accounts application
     'vm_management.apps.VmManagementConfig', # Install vm_management application
     'django.contrib.admin',
@@ -134,6 +136,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
@@ -173,6 +177,7 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 # SSO
+
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get('SOCIAL_AUTH_GOOGLE_OAUTH2_KEY')
 if not GOOGLE_OAUTH_CLIENT_ID:
     raise ValueError(
@@ -180,5 +185,21 @@ if not GOOGLE_OAUTH_CLIENT_ID:
     )
 
 # We need these lines below to allow the Google sign in popup to work.
+
 SECURE_REFERRER_POLICY = 'no-referrer-when-downgrade'
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
+
+# JWTs
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
+# CSRF Settings
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
