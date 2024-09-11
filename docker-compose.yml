@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: hynfratech
+      POSTGRES_USER: botontapwater
+      POSTGRES_PASSWORD: TwoGreen1.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  web:
+    build: .
+    command: >
+      bash -c "
+      python manage.py migrate &&
+      gunicorn hynfratech_assessment.wsgi:application --bind 0.0.0.0:8000
+      "
+    volumes:
+      - .:/app
+      - /app/static
+      # - /home/${USER}/VirtualBox\ VMs:/root/VirtualBox\ VMs # Mount the host VM directory to the container
+      # - /home/${USER}/.config/VirtualBox:/root/.config/virtualbox # Mount the VirtualBox config directory
+
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE=hynfratech
+      - DATABASE_USERNAME=botontapwater
+      - PASSWORD=TwoGreen1.
+      - HOST=db
+      - PORT=5432
+      - DEBUG=1
+      - DJANGO_SECRET_KEY='0cc8c03f8885c96774a3f1febc083c48f26e3bb0aa9e5315e5060c588d03fa64'
+      # - HOST_USER=${USER}
+      # - HOST_HOME=${HOME}
+    env_file:
+      - .env
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
