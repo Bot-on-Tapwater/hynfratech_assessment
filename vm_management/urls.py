@@ -11,7 +11,7 @@ urlpatterns = [
     path('restart/<int:vm_id>/', views.restart_vm, name='restart_vm'),
     path('details/<int:vm_id>/', views.vm_details, name='vm_details'),
     path('configure/<int:vm_id>/', views.configure_vm, name='configure_vm'),
-    path('console/<int:vm_id>/', views.view_vm_console, name='view_vm_console'),
+    # path('console/<int:vm_id>/', views.view_vm_console, name='view_vm_console'),
     path('transfer_vm/<int:vm_id>/', views.transfer_vm_view, name='transfer_vm'),
     path('payment/', views.payment_page, name='payment_page'),
     # Subscription page to view/upgrade/downgrade plan
