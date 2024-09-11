@@ -8,8 +8,13 @@ from .forms import CustomUserCreationForm, LoginForm
 from .models import UserRole
 from django.views.decorators.csrf import csrf_exempt
 from google.oauth2 import id_token
-from google.auth.transport import requests
+# from google.auth.transport import requests
 from django.conf import settings
+from django.urls import reverse
+from django.http import HttpResponseRedirect
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
 
 def register(request):
     if request.method == 'POST':
