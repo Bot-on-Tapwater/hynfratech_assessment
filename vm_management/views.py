@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import os
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from .models import VM, ActionLog, Payment, Subscription, RatePlan
@@ -18,7 +19,84 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from django.conf import settings
 
+import paramiko
+
 logger = logging.getLogger(__name__)
+
+host_username = os.environ.get('HOST_USER')
+host_home = os.environ.get('HOST_HOME')
+host_password = os.environ.get('HOST_PASSWORD')
+home_dir = os.getenv('HOME', '/root')  # Default to '/root' if HOME is not set
+
+def add_host_to_known_hosts(hostname):
+    ssh = paramiko.SSHClient()
+    ssh.load_system_host_keys()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(hostname, username=host_username, password=os.environ.get('PASSWORD'))
+    ssh.close()
+
+def generate_ssh_key():
+    ssh_dir = os.path.join(home_dir, '.ssh')
+    if not os.path.exists(ssh_dir):
+        os.makedirs(ssh_dir)  # Create .ssh directory if it doesn't exist
+
+    key_path = os.path.join(ssh_dir, 'id_rsa')
+    if not os.path.exists(key_path):
+        subprocess.run(['ssh-keygen', '-t', 'rsa', '-b', '2048', '-f', key_path, '-N', ''])
+        print("SSH key generated.")
+    else:
+        print("SSH key already exists.")
+
+
+def copy_public_key_to_host(host, username):
+    public_key_path = os.path.join('/root', '.ssh', 'id_rsa.pub')
+    # Make sure the public key exists
+    if os.path.exists(public_key_path):
+        # Use the public key path when calling ssh-copy-id
+        subprocess.run(['ssh-copy-id', '-i', public_key_path, '-o', 'StrictHostKeyChecking=no', f'{username}@{host}'])
+        print(f"Public key copied to {host}.")
+    else:
+        print("Public key file not found.")
+    
+    add_host_to_known_hosts(host)
+
+
+# def run_vboxmanage_command(host, username, command):
+#     ssh = paramiko.SSHClient()
+#     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+#     ssh.connect(host, username=username)
+    
+#     stdin, stdout, stderr = ssh.exec_command(command)
+#     output = stdout.read().decode()
+#     error = stderr.read().decode()
+
+#     ssh.close()
+    
+#     if error:
+#         print(f"Error: {error}")
+#     else:
+#         print(f"Output: {output}")
+
+def run_vboxmanage_command(host, username, password, command):
+    print(f"HOST: {host}, USERNAME: {username}, PASSWORD: {password}, COMMAND: {command}")
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    # Connect using the password
+    ssh.connect(host, username=username, password=password)
+
+    stdin, stdout, stderr = ssh.exec_command(command)
+    output = stdout.read().decode()
+    error = stderr.read().decode()
+
+    ssh.close()
+
+    # Check if there is an actual error
+    # if error and "progress" not in output.lower():
+    #     raise Exception(f"Error executing command: {error}")
+    
+    return output
+
 
 def send_smtp_email(subject, body, to_email):
     msg = MIMEMultipart()
@@ -52,6 +130,7 @@ def vm_list(request):
 @login_required
 def create_vm(request):
     user = request.user
+    
     # Check subscription and VM limits
     try:
         subscription = Subscription.objects.get(user=user)
@@ -84,18 +163,25 @@ def create_vm(request):
         name = request.POST.get('name')
         disk_size = int(request.POST.get('disk_size'))
         cpu = int(request.POST.get('cpu', 1))
-        memory = int(request.POST.get('memory', 1024))
+        memory = int(request.POST.get('memory', 256))
 
-        # VM creation commands (VirtualBox in this case)
-        subprocess.run([
-            'vboxmanage', 'createvm', '--name', name, '--register'
-        ])
-        subprocess.run([
-            'vboxmanage', 'modifyvm', name, '--memory', str(memory), '--cpus', str(cpu), '--vram', '16', '--nic1', 'nat'
-        ])
-        subprocess.run([
-            'vboxmanage', 'createhd', '--filename', f'~/VirtualBox VMs/{name}/{name}.vdi', '--size', str(disk_size)
-        ])
+        host_ip = '192.168.1.191'
+        host_username = os.environ.get('HOST_USER')
+
+        if not host_username:
+            raise ValueError("USER environment variable is not set.")
+
+        # generate_ssh_key()
+        # copy_public_key_to_host(host_ip, host_username)
+
+        # VM creation commands via paramiko
+        create_vm_cmd = f'vboxmanage createvm --name {name} --register'
+        modify_vm_cmd = f'vboxmanage modifyvm {name} --memory {memory} --cpus {cpu} --vram 16 --nic1 nat'
+        create_hd_cmd = f'vboxmanage createhd --filename ~/VirtualBox\\ VMs/{name}/{name}.vdi --size {disk_size}'
+
+        run_vboxmanage_command(host_ip, host_username, host_password, create_vm_cmd)
+        run_vboxmanage_command(host_ip, host_username, host_password, modify_vm_cmd)
+        run_vboxmanage_command(host_ip, host_username, host_password, create_hd_cmd)
 
         # Save VM in database
         vm = VM.objects.create(name=name, user=request.user, disk_size=disk_size, status='stopped', cpu=cpu, memory=memory)
@@ -106,19 +192,66 @@ def create_vm(request):
     return render(request, 'vm_management/create_vm.html')
 
 
+# @login_required
+# def configure_vm(request, vm_id):
+#     vm = VM.objects.get(id=vm_id)
+
+#     # Check the VM status
+#     vm_status_output = subprocess.run(
+#         ['vboxmanage', 'showvminfo', vm.name, '--machinereadable'], 
+#         capture_output=True, text=True
+#     )
+
+#     if "VMState=\"running\"" in vm_status_output.stdout:
+#         # If VM is running, stop it before making modifications
+#         subprocess.run(['vboxmanage', 'controlvm', vm.name, 'poweroff'])
+
+#     if request.method == 'POST':
+#         # Get the configuration data from the form
+#         new_memory = request.POST.get('memory')
+#         new_cpu = request.POST.get('cpus')
+
+#         # Modify the VM configuration with the new values
+#         subprocess.run([
+#             'vboxmanage', 'modifyvm', vm.name, '--memory', new_memory, '--cpus', new_cpu
+#         ])
+
+#         # Update the VM model
+#         logger.debug(f"Before saving: {vm.to_dict()}")
+#         vm.memory = int(new_memory)
+#         vm.cpu = int(new_cpu)
+#         try:
+#             vm.save()
+#             logger.debug(f"After saving: {vm.to_dict()}")
+#         except Exception as e:
+#             logger.error(f"Error saving VM: {e}", exc_info=True)
+
+
+#         ActionLog.objects.create(action_type='configure', vm=vm, user=request.user)
+
+#         return redirect('vm_list')
+
+#     return render(request, 'vm_management/configure_vm.html', {'vm': vm})
+
 @login_required
 def configure_vm(request, vm_id):
     vm = VM.objects.get(id=vm_id)
 
-    # Check the VM status
-    vm_status_output = subprocess.run(
-        ['vboxmanage', 'showvminfo', vm.name, '--machinereadable'], 
-        capture_output=True, text=True
-    )
+    host_ip = '192.168.1.191'
+    host_username = os.environ.get('HOST_USER')
+    host_password = os.environ.get('HOST_PASSWORD')
 
-    if "VMState=\"running\"" in vm_status_output.stdout:
+    if not host_username or not host_password:
+        raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
+
+    # Check the VM status
+    show_vm_info_cmd = f'vboxmanage showvminfo {vm.name} --machinereadable'
+    vm_status_output = run_vboxmanage_command(host_ip, host_username, host_password, show_vm_info_cmd)
+
+    if "VMState=\"running\"" in vm_status_output:
         # If VM is running, stop it before making modifications
-        subprocess.run(['vboxmanage', 'controlvm', vm.name, 'poweroff'])
+        stop_vm_cmd = f'vboxmanage controlvm {vm.name} poweroff'
+        run_vboxmanage_command(host_ip, host_username, host_password, stop_vm_cmd)
 
     if request.method == 'POST':
         # Get the configuration data from the form
@@ -126,9 +259,8 @@ def configure_vm(request, vm_id):
         new_cpu = request.POST.get('cpus')
 
         # Modify the VM configuration with the new values
-        subprocess.run([
-            'vboxmanage', 'modifyvm', vm.name, '--memory', new_memory, '--cpus', new_cpu
-        ])
+        modify_vm_cmd = f'vboxmanage modifyvm {vm.name} --memory {new_memory} --cpus {new_cpu}'
+        run_vboxmanage_command(host_ip, host_username, host_password, modify_vm_cmd)
 
         # Update the VM model
         logger.debug(f"Before saving: {vm.to_dict()}")
@@ -140,7 +272,6 @@ def configure_vm(request, vm_id):
         except Exception as e:
             logger.error(f"Error saving VM: {e}", exc_info=True)
 
-
         ActionLog.objects.create(action_type='configure', vm=vm, user=request.user)
 
         return redirect('vm_list')
@@ -149,63 +280,64 @@ def configure_vm(request, vm_id):
 
 
 
-@login_required
-def delete_vm(request, vm_id):
-    vm = VM.objects.get(id=vm_id)
 
-    ActionLog.objects.create(action_type='delete', vm=vm, user=request.user)
+# @login_required
+# def delete_vm(request, vm_id):
+#     vm = VM.objects.get(id=vm_id)
+
+#     ActionLog.objects.create(action_type='delete', vm=vm, user=request.user)
     
-    # Use vboxmanage to delete VM
-    subprocess.run(['vboxmanage', 'unregistervm', vm.name, '--delete'])
+#     # Use vboxmanage to delete VM
+#     subprocess.run(['vboxmanage', 'unregistervm', vm.name, '--delete'])
 
-    vm.delete()    
+#     vm.delete()    
 
-    return redirect('vm_list')
+#     return redirect('vm_list')
 
-@login_required
-def backup_vm(request, vm_id):
-    vm = VM.objects.get(id=vm_id)
-    subprocess.run(['vboxmanage', 'snapshot', vm.name, 'take', 'backup'])
-    ActionLog.objects.create(action_type='backup', vm=vm, user=request.user)
-    return redirect('vm_list')
+# @login_required
+# def backup_vm(request, vm_id):
+#     vm = VM.objects.get(id=vm_id)
+#     subprocess.run(['vboxmanage', 'snapshot', vm.name, 'take', 'backup'])
+#     ActionLog.objects.create(action_type='backup', vm=vm, user=request.user)
+#     return redirect('vm_list')
 
-@login_required
-def start_vm(request, vm_id):
-    vm = VM.objects.get(id=vm_id)
-    if vm.user == request.user:  # Ensure user owns the VM
-        subprocess.run(['vboxmanage', 'startvm', vm.name, '--type', 'headless'])
-        vm.status = 'running'
-        vm.save()
-        ActionLog.objects.create(action_type='start', vm=vm, user=request.user)
-    return redirect('vm_list')
+# @login_required
+# def start_vm(request, vm_id):
+#     vm = VM.objects.get(id=vm_id)
+#     if vm.user == request.user:  # Ensure user owns the VM
+#         subprocess.run(['vboxmanage', 'startvm', vm.name, '--type', 'headless'])
+#         vm.status = 'running'
+#         vm.save()
+#         ActionLog.objects.create(action_type='start', vm=vm, user=request.user)
+#     return redirect('vm_list')
 
-@login_required
-def stop_vm(request, vm_id):
-    vm = VM.objects.get(id=vm_id)
-    if vm.user == request.user:  # Ensure user owns the VM
-        subprocess.run(['vboxmanage', 'controlvm', vm.name, 'acpipowerbutton'])
-        vm.status = 'stopped'
-        vm.save()
-        ActionLog.objects.create(action_type='stop', vm=vm, user=request.user)
-    return redirect('vm_list')
+# @login_required
+# def stop_vm(request, vm_id):
+#     vm = VM.objects.get(id=vm_id)
+#     if vm.user == request.user:  # Ensure user owns the VM
+#         subprocess.run(['vboxmanage', 'controlvm', vm.name, 'acpipowerbutton'])
+#         vm.status = 'stopped'
+#         vm.save()
+#         ActionLog.objects.create(action_type='stop', vm=vm, user=request.user)
+#     return redirect('vm_list')
 
-@login_required
-def restart_vm(request, vm_id):
-    vm = VM.objects.get(id=vm_id)
-    if vm.user == request.user:  # Ensure user owns the VM
-        subprocess.run(['vboxmanage', 'controlvm', vm.name, 'reset'])
-        ActionLog.objects.create(action_type='restart', vm=vm, user=request.user)
-    return redirect('vm_list')
+# @login_required
+# def restart_vm(request, vm_id):
+#     vm = VM.objects.get(id=vm_id)
+#     if vm.user == request.user:  # Ensure user owns the VM
+#         subprocess.run(['vboxmanage', 'controlvm', vm.name, 'reset'])
+#         ActionLog.objects.create(action_type='restart', vm=vm, user=request.user)
+#     return redirect('vm_list')
 
-@login_required
-def vm_details(request, vm_id):
-    vm = VM.objects.get(id=vm_id)
-    if vm.user == request.user:  # Ensure user owns the VM
-        vm_info = subprocess.run(['vboxmanage', 'showvminfo', vm.name], capture_output=True, text=True)
-        vm_details = vm_info.stdout  # Raw VM info output, you can parse and format this as needed
+# @login_required
+# def vm_details(request, vm_id):
+#     vm = VM.objects.get(id=vm_id)
+#     if vm.user == request.user:  # Ensure user owns the VM
+#         vm_info = subprocess.run(['vboxmanage', 'showvminfo', vm.name], capture_output=True, text=True)
+#         vm_details = vm_info.stdout  # Raw VM info output, you can parse and format this as needed
 
-        return render(request, 'vm_management/vm_details.html', {'vm': vm, 'vm_details': vm_details})
-    return redirect('vm_list')
+#         return render(request, 'vm_management/vm_details.html', {'vm': vm, 'vm_details': vm_details})
+#     return redirect('vm_list')
 
 # @login_required
 # def configure_vm(request, vm_id):
@@ -238,15 +370,136 @@ def vm_details(request, vm_id):
 #     return render(request, 'vm_management/configure_vm.html', {'vm': vm})
 
 
-@login_required
-def view_vm_console(request, vm_id):
-    vm = VM.objects.get(id=vm_id)
-    if vm.user == request.user:  # Ensure user owns the VM
-        console_output = subprocess.run(['vboxmanage', 'controlvm', vm.name, 'screenshotpng', '/tmp/vm_console.png'])
-        ActionLog.objects.create(action_type='view_console', vm=vm, user=request.user)
+# @login_required
+# def view_vm_console(request, vm_id):
+#     vm = VM.objects.get(id=vm_id)
+#     if vm.user == request.user:  # Ensure user owns the VM
+#         console_output = subprocess.run(['vboxmanage', 'controlvm', vm.name, 'screenshotpng', '/tmp/vm_console.png'])
+#         ActionLog.objects.create(action_type='view_console', vm=vm, user=request.user)
 
-        # You can either return the console image or display it in your frontend
-        return redirect('vm_list')  # You can enhance this to show the console image or more details
+#         # You can either return the console image or display it in your frontend
+#         return redirect('vm_list')  # You can enhance this to show the console image or more details
+#     return redirect('vm_list')
+
+@login_required
+def delete_vm(request, vm_id):
+    vm = VM.objects.get(id=vm_id)
+
+    host_ip = '192.168.1.191'
+    host_username = os.environ.get('HOST_USER')
+    host_password = os.environ.get('HOST_PASSWORD')
+
+    if not host_username or not host_password:
+        raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
+
+    # Use vboxmanage to delete VM
+    unregister_vm_cmd = f'vboxmanage unregistervm {vm.name} --delete'
+    run_vboxmanage_command(host_ip, host_username, host_password, unregister_vm_cmd)
+
+    ActionLog.objects.create(action_type='delete', vm=vm, user=request.user)
+    vm.delete()
+
+    return redirect('vm_list')
+
+@login_required
+def backup_vm(request, vm_id):
+    vm = VM.objects.get(id=vm_id)
+
+    host_ip = '192.168.1.191'
+    host_username = os.environ.get('HOST_USER')
+    host_password = os.environ.get('HOST_PASSWORD')
+
+    if not host_username or not host_password:
+        raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
+
+    # Use vboxmanage to take a snapshot (backup)
+    snapshot_cmd = f'vboxmanage snapshot {vm.name} take backup'
+    run_vboxmanage_command(host_ip, host_username, host_password, snapshot_cmd)
+
+    ActionLog.objects.create(action_type='backup', vm=vm, user=request.user)
+    
+    return redirect('vm_list')
+
+@login_required
+def start_vm(request, vm_id):
+    vm = VM.objects.get(id=vm_id)
+
+    host_ip = '192.168.1.191'
+    host_username = os.environ.get('HOST_USER')
+    host_password = os.environ.get('HOST_PASSWORD')
+
+    if not host_username or not host_password:
+        raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
+
+    if vm.user == request.user:  # Ensure user owns the VM
+        start_vm_cmd = f'vboxmanage startvm {vm.name} --type headless'
+        run_vboxmanage_command(host_ip, host_username, host_password, start_vm_cmd)
+
+        vm.status = 'running'
+        vm.save()
+
+        ActionLog.objects.create(action_type='start', vm=vm, user=request.user)
+    
+    return redirect('vm_list')
+
+@login_required
+def stop_vm(request, vm_id):
+    vm = VM.objects.get(id=vm_id)
+
+    host_ip = '192.168.1.191'
+    host_username = os.environ.get('HOST_USER')
+    host_password = os.environ.get('HOST_PASSWORD')
+
+    if not host_username or not host_password:
+        raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
+
+    if vm.user == request.user:  # Ensure user owns the VM
+        stop_vm_cmd = f'vboxmanage controlvm {vm.name} acpipowerbutton'
+        run_vboxmanage_command(host_ip, host_username, host_password, stop_vm_cmd)
+
+        vm.status = 'stopped'
+        vm.save()
+
+        ActionLog.objects.create(action_type='stop', vm=vm, user=request.user)
+    
+    return redirect('vm_list')
+
+@login_required
+def restart_vm(request, vm_id):
+    vm = VM.objects.get(id=vm_id)
+
+    host_ip = '192.168.1.191'
+    host_username = os.environ.get('HOST_USER')
+    host_password = os.environ.get('HOST_PASSWORD')
+
+    if not host_username or not host_password:
+        raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
+
+    if vm.user == request.user:  # Ensure user owns the VM
+        restart_vm_cmd = f'vboxmanage controlvm {vm.name} reset'
+        run_vboxmanage_command(host_ip, host_username, host_password, restart_vm_cmd)
+
+        ActionLog.objects.create(action_type='restart', vm=vm, user=request.user)
+    
+    return redirect('vm_list')
+
+@login_required
+def vm_details(request, vm_id):
+    vm = VM.objects.get(id=vm_id)
+
+    host_ip = '192.168.1.191'
+    host_username = os.environ.get('HOST_USER')
+    host_password = os.environ.get('HOST_PASSWORD')
+
+    if not host_username or not host_password:
+        raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
+
+    if vm.user == request.user:  # Ensure user owns the VM
+        vm_info_cmd = f'vboxmanage showvminfo {vm.name}'
+        vm_info_output = run_vboxmanage_command(host_ip, host_username, host_password, vm_info_cmd)
+        
+        return render(request, 'vm_management/vm_details.html', {'vm': vm, 'vm_details': vm_info_output})
+    
     return redirect('vm_list')
 
 def transfer_vm(vm_id, new_user_id, original_user):
