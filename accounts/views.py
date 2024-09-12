@@ -19,6 +19,42 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth import login as auth_login
 from google.auth.transport import requests as google_requests
 from django.contrib.auth import logout as auth_logout
+from functools import wraps
+
+def admin_required(view_func):
+    """
+    Decorator to check if the user is an admin.
+    If not, they are redirected to the 'access_denied' page.
+    """
+    @wraps(view_func)
+    @login_required
+    def _wrapped_view(request, *args, **kwargs):
+        if request.user.role == UserRole.ADMIN:
+            return view_func(request, *args, **kwargs)
+        else:
+            # Redirect to an 'Access Denied' page or another page (e.g., home)
+            return redirect(reverse('access_denied'))  # Replace with the URL of your choice
+    return _wrapped_view
+
+def admin_or_standard_user_required(view_func):
+    """
+    Decorator to check if the user is either an admin or a standard user.
+    If not, they are redirected to the 'access_denied' page.
+    """
+    @wraps(view_func)
+    @login_required
+    def _wrapped_view(request, *args, **kwargs):
+        if request.user.role in [UserRole.ADMIN, UserRole.STANDARD_USER]:
+            return view_func(request, *args, **kwargs)
+        else:
+            # Redirect to an 'Access Denied' page or another page (e.g., home)
+            return redirect(reverse('access_denied'))  # Replace with the URL of your choice
+    return _wrapped_view
+
+def access_denied(request):
+    return render(request, 'accounts/access_denied.html', {
+        'message': "You don't have permission to access this page."
+    })
 
 def register(request):
     if request.method == 'POST':
@@ -30,6 +66,7 @@ def register(request):
         form = CustomUserCreationForm()
     return render(request, 'accounts/register.html', {'form': form})
 
+@csrf_exempt
 def login(request):
     if request.method == 'POST':
         form = LoginForm(request.POST)
