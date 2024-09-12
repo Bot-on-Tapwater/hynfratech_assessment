@@ -23,4 +23,5 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # Run the wait-for-it script to wait for the database to be ready before starting gunicorn
-CMD ["db:5432", "--", "gunicorn", "--bind", "0.0.0.0:8000", "hynfratech_assessment.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "hynfratech_assessment.wsgi:application"]
+
