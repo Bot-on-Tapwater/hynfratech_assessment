@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: django
+  template:
+    metadata:
+      labels:
+        app: django
+    spec:
+      containers:
+        - name: django
+          image: botontapwater/hynfratech-assessment:latest
+          env:
+            - name: DATABASE
+              value: "hynfratech"
+            - name: DATABASE_USERNAME
+              value: "botontapwater"
+            - name: PASSWORD
+              value: "TwoGreen1."
+            - name: HOST
+              value: "postgres"
+            - name: PORT
+              value: "5432"
+            - name: DEBUG
+              value: "1"
+            - name: DJANGO_SECRET_KEY
+              value: "0cc8c03f8885c96774a3f1febc083c48f26e3bb0aa9e5315e5060c588d03fa64"
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: django
+spec:
+  selector:
+    app: django
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: LoadBalancer
