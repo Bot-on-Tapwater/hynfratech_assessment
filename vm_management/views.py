@@ -60,23 +60,6 @@ def copy_public_key_to_host(host, username):
     
     add_host_to_known_hosts(host)
 
-
-# def run_vboxmanage_command(host, username, command):
-#     ssh = paramiko.SSHClient()
-#     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-#     ssh.connect(host, username=username)
-    
-#     stdin, stdout, stderr = ssh.exec_command(command)
-#     output = stdout.read().decode()
-#     error = stderr.read().decode()
-
-#     ssh.close()
-    
-#     if error:
-#         print(f"Error: {error}")
-#     else:
-#         print(f"Output: {output}")
-
 def run_vboxmanage_command(host, username, password, command):
     print(f"HOST: {host}, USERNAME: {username}, PASSWORD: {password}, COMMAND: {command}")
     ssh = paramiko.SSHClient()
@@ -191,48 +174,6 @@ def create_vm(request):
 
     return render(request, 'vm_management/create_vm.html')
 
-
-# @login_required
-# def configure_vm(request, vm_id):
-#     vm = VM.objects.get(id=vm_id)
-
-#     # Check the VM status
-#     vm_status_output = subprocess.run(
-#         ['vboxmanage', 'showvminfo', vm.name, '--machinereadable'], 
-#         capture_output=True, text=True
-#     )
-
-#     if "VMState=\"running\"" in vm_status_output.stdout:
-#         # If VM is running, stop it before making modifications
-#         subprocess.run(['vboxmanage', 'controlvm', vm.name, 'poweroff'])
-
-#     if request.method == 'POST':
-#         # Get the configuration data from the form
-#         new_memory = request.POST.get('memory')
-#         new_cpu = request.POST.get('cpus')
-
-#         # Modify the VM configuration with the new values
-#         subprocess.run([
-#             'vboxmanage', 'modifyvm', vm.name, '--memory', new_memory, '--cpus', new_cpu
-#         ])
-
-#         # Update the VM model
-#         logger.debug(f"Before saving: {vm.to_dict()}")
-#         vm.memory = int(new_memory)
-#         vm.cpu = int(new_cpu)
-#         try:
-#             vm.save()
-#             logger.debug(f"After saving: {vm.to_dict()}")
-#         except Exception as e:
-#             logger.error(f"Error saving VM: {e}", exc_info=True)
-
-
-#         ActionLog.objects.create(action_type='configure', vm=vm, user=request.user)
-
-#         return redirect('vm_list')
-
-#     return render(request, 'vm_management/configure_vm.html', {'vm': vm})
-
 @login_required
 def configure_vm(request, vm_id):
     vm = VM.objects.get(id=vm_id)
@@ -277,109 +218,6 @@ def configure_vm(request, vm_id):
         return redirect('vm_list')
 
     return render(request, 'vm_management/configure_vm.html', {'vm': vm})
-
-
-
-
-# @login_required
-# def delete_vm(request, vm_id):
-#     vm = VM.objects.get(id=vm_id)
-
-#     ActionLog.objects.create(action_type='delete', vm=vm, user=request.user)
-    
-#     # Use vboxmanage to delete VM
-#     subprocess.run(['vboxmanage', 'unregistervm', vm.name, '--delete'])
-
-#     vm.delete()    
-
-#     return redirect('vm_list')
-
-# @login_required
-# def backup_vm(request, vm_id):
-#     vm = VM.objects.get(id=vm_id)
-#     subprocess.run(['vboxmanage', 'snapshot', vm.name, 'take', 'backup'])
-#     ActionLog.objects.create(action_type='backup', vm=vm, user=request.user)
-#     return redirect('vm_list')
-
-# @login_required
-# def start_vm(request, vm_id):
-#     vm = VM.objects.get(id=vm_id)
-#     if vm.user == request.user:  # Ensure user owns the VM
-#         subprocess.run(['vboxmanage', 'startvm', vm.name, '--type', 'headless'])
-#         vm.status = 'running'
-#         vm.save()
-#         ActionLog.objects.create(action_type='start', vm=vm, user=request.user)
-#     return redirect('vm_list')
-
-# @login_required
-# def stop_vm(request, vm_id):
-#     vm = VM.objects.get(id=vm_id)
-#     if vm.user == request.user:  # Ensure user owns the VM
-#         subprocess.run(['vboxmanage', 'controlvm', vm.name, 'acpipowerbutton'])
-#         vm.status = 'stopped'
-#         vm.save()
-#         ActionLog.objects.create(action_type='stop', vm=vm, user=request.user)
-#     return redirect('vm_list')
-
-# @login_required
-# def restart_vm(request, vm_id):
-#     vm = VM.objects.get(id=vm_id)
-#     if vm.user == request.user:  # Ensure user owns the VM
-#         subprocess.run(['vboxmanage', 'controlvm', vm.name, 'reset'])
-#         ActionLog.objects.create(action_type='restart', vm=vm, user=request.user)
-#     return redirect('vm_list')
-
-# @login_required
-# def vm_details(request, vm_id):
-#     vm = VM.objects.get(id=vm_id)
-#     if vm.user == request.user:  # Ensure user owns the VM
-#         vm_info = subprocess.run(['vboxmanage', 'showvminfo', vm.name], capture_output=True, text=True)
-#         vm_details = vm_info.stdout  # Raw VM info output, you can parse and format this as needed
-
-#         return render(request, 'vm_management/vm_details.html', {'vm': vm, 'vm_details': vm_details})
-#     return redirect('vm_list')
-
-# @login_required
-# def configure_vm(request, vm_id):
-#     vm = VM.objects.get(id=vm_id)
-
-#     # Check the VM status
-#     vm_status_output = subprocess.run(
-#         ['vboxmanage', 'showvminfo', vm.name, '--machinereadable'], 
-#         capture_output=True, text=True
-#     )
-
-#     if "VMState=\"running\"" in vm_status_output.stdout:
-#         # If VM is running, stop it before making modifications
-#         subprocess.run(['vboxmanage', 'controlvm', vm.name, 'poweroff'])
-
-#     if request.method == 'POST':
-#         # Get the configuration data from the form
-#         new_memory = request.POST.get('memory')
-#         new_cpu = request.POST.get('cpus')
-
-#         # Modify the VM configuration with the new values
-#         subprocess.run([
-#             'vboxmanage', 'modifyvm', vm.name, '--memory', new_memory, '--cpus', new_cpu
-#         ])
-
-#         ActionLog.objects.create(action_type='configure', vm=vm, user=request.user)
-
-#         return redirect('vm_list')
-
-#     return render(request, 'vm_management/configure_vm.html', {'vm': vm})
-
-
-# @login_required
-# def view_vm_console(request, vm_id):
-#     vm = VM.objects.get(id=vm_id)
-#     if vm.user == request.user:  # Ensure user owns the VM
-#         console_output = subprocess.run(['vboxmanage', 'controlvm', vm.name, 'screenshotpng', '/tmp/vm_console.png'])
-#         ActionLog.objects.create(action_type='view_console', vm=vm, user=request.user)
-
-#         # You can either return the console image or display it in your frontend
-#         return redirect('vm_list')  # You can enhance this to show the console image or more details
-#     return redirect('vm_list')
 
 @login_required
 def delete_vm(request, vm_id):
