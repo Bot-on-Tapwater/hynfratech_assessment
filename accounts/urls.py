@@ -7,4 +7,5 @@ urlpatterns = [
     path('logout/', views.logout, name='logout'),
     path('', views.home, name='home'),
     path('google-complete/', views.google_complete, name='google-complete'),
+    path('access_denied/', views.access_denied, name='access_denied'),
 ]
