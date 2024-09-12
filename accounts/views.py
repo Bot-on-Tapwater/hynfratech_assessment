@@ -15,6 +15,10 @@ from django.http import HttpResponseRedirect
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from django.contrib.auth import get_user_model
+from django.contrib.auth import login as auth_login
+from google.auth.transport import requests as google_requests
+from django.contrib.auth import logout as auth_logout
 
 def register(request):
     if request.method == 'POST':
@@ -58,18 +62,38 @@ def google_complete(request):
     """
     Google calls this URL after the user has signed in with their Google account.
     """
-    print('Inside')
-    token = request.POST['credential']
+    token = request.POST.get('credential')
 
     try:
+        # Verify the token using the correct 'Request' from google.auth.transport
         user_data = id_token.verify_oauth2_token(
-            token, requests.Request(), settings.GOOGLE_OAUTH_CLIENT_ID
+            token, google_requests.Request(), settings.GOOGLE_OAUTH_CLIENT_ID
         )
+        email = user_data.get('email')
+        first_name = user_data.get('given_name')
+        last_name = user_data.get('family_name')
+
+        # Get or create the user in the database
+        User = get_user_model()
+        user, created = User.objects.get_or_create(email=email, defaults={
+            'username': email,  # Username can be set as email
+            'first_name': first_name,
+            'last_name': last_name,
+            'role': UserRole.GUEST  # Default role as GUEST
+        })
+
+        # Log the user in
+        auth_login(request, user)
+
     except ValueError:
         return HttpResponse(status=403)
 
-    # In a real app, I'd also save any new user here to the database.
-    # You could also authenticate the user here using the details from Google (https://docs.djangoproject.com/en/4.2/topics/auth/default/#how-to-log-a-user-in)
-    request.session['user_data'] = user_data
+    return redirect('home')
 
+@login_required
+def logout(request):
+    """
+    Logs out the user (Custom or Google) and redirects to the login page.
+    """
+    auth_logout(request)  # This will log out any authenticated user
     return redirect('login')
