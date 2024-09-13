@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import VM, ActionLog, Payment, Subscription, RatePlan
+from .models import VM, ActionLog, Payment, Subscription, RatePlan, Backup
 from accounts.models import CustomUser  # Import CustomUser from accounts app
 
 @admin.register(VM)
@@ -36,3 +36,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
 @admin.register(RatePlan)
 class RatePlanAdmin(admin.ModelAdmin):
     list_display = ('name', 'max_vms', 'max_backups', 'price')
+
+@admin.register(Backup)
+class BackupAdmin(admin.ModelAdmin):
+    list_display = ('vm', 'user', 'created_at',)
