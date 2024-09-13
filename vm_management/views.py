@@ -96,23 +96,15 @@ def vm_list(request):
 @subscription_required
 def create_vm(request):
     user = request.user
-
-    # Check subscription and VM limits
-    try:
-        subscription = Subscription.objects.get(user=user)
-    except Subscription.DoesNotExist:
-        messages.error(request, "You don't have an active subscription.")
-        return redirect('subscription_page')
-
-    # Check if the subscription is inactive
-    if not subscription.active:
-        messages.error(request, "Your subscription is inactive. Please make a payment to create more VMs.")
-        return redirect('payment_page')
+    subscription = Subscription.objects.get(user=user)
 
     # Determine which user should have their limits applied (for multi-client accounts)
     if subscription.parent_account:
         parent_account = subscription.parent_account
-        user_vms_count = VM.objects.filter(user__in=parent_account.managed_users.all()).count()
+        # Assuming parent_account has a related name 'managed_users' pointing to CustomUser
+        # Get users managed by the parent account (which are CustomUser objects)
+        managed_users = CustomUser.objects.filter(subscription__parent_account=parent_account)
+        user_vms_count = VM.objects.filter(user__in=managed_users).count()
         plan_limit = parent_account.subscription.rate_plan.max_vms
     else:
         parent_account = None
@@ -178,6 +170,7 @@ def create_vm(request):
     return render(request, 'vm_management/create_vm.html')
 
 @admin_or_standard_user_required
+@subscription_required
 def configure_vm(request, vm_id):
     vm = VM.objects.get(id=vm_id)
 
@@ -219,6 +212,7 @@ def configure_vm(request, vm_id):
     return render(request, 'vm_management/configure_vm.html', {'vm': vm})
 
 @admin_or_standard_user_required
+@subscription_required
 def delete_vm(request, vm_id):
     vm = VM.objects.get(id=vm_id)
 
@@ -238,26 +232,29 @@ def delete_vm(request, vm_id):
 def backup_vm(request, vm_id):
     try:
         vm = VM.objects.get(id=vm_id)
+        user = vm.user
+        subscription = Subscription.objects.get(user=user)
     except VM.DoesNotExist:
         messages.error(request, "VM does not exist.")
         return redirect('vm_list')
 
-    # Retrieve user's subscription
-    try:
-        subscription = Subscription.objects.get(user=request.user)
-    except Subscription.DoesNotExist:
-        messages.error(request, "You don't have an active subscription.")
-        return redirect('subscription_page')
+    # Determine which user should have their limits applied (for multi-client accounts)
+    if subscription.parent_account:
+        parent_account = subscription.parent_account
+        # Assuming parent_account has a related name 'managed_users' pointing to CustomUser
+        # Count backups for the parent account and all managed users
+        managed_users = CustomUser.objects.filter(subscription__parent_account=parent_account)
+        user_backups_count = Backup.objects.filter(user__in=managed_users).count()
+        plan_limit = parent_account.subscription.rate_plan.max_backups
+    else:
+        parent_account = None
+        # Count backups for the current user
+        user_backups_count = Backup.objects.filter(user=user).count()
+        plan_limit = subscription.rate_plan.max_backups
 
-    # Check if the subscription is active
-    if not subscription.active:
-        messages.error(request, "Your subscription is inactive. Please make a payment to create more backups.")
-        return redirect('payment_page')
-
-    # Check the number of backups the user has created
-    user_backup_count = Backup.objects.filter(user=request.user).count()
-    if user_backup_count >= subscription.rate_plan.max_backups:
-        messages.error(request, "You've reached your backup limit.")
+    # Check if user has reached their backup creation limit
+    if user_backups_count >= plan_limit:
+        messages.error(request, f"You've reached your backup creation limit of {plan_limit} backups.")
         return redirect('vm_list')
 
     if not host_username or not host_ip or not host_password:
@@ -277,6 +274,7 @@ def backup_vm(request, vm_id):
     return redirect('vm_list')
 
 @admin_or_standard_user_required
+@subscription_required
 def start_vm(request, vm_id):
     vm = VM.objects.get(id=vm_id)
 
@@ -295,6 +293,7 @@ def start_vm(request, vm_id):
     return redirect('vm_list')
 
 @admin_or_standard_user_required
+@subscription_required
 def stop_vm(request, vm_id):
     vm = VM.objects.get(id=vm_id)
 
@@ -313,6 +312,7 @@ def stop_vm(request, vm_id):
     return redirect('vm_list')
 
 @admin_or_standard_user_required
+@subscription_required
 def vm_details(request, vm_id):
     vm = VM.objects.get(id=vm_id)
 
@@ -383,15 +383,17 @@ def transfer_vm_view(request, vm_id):
     return render(request, 'vm_management/transfer_vm.html', {'vm': vm, 'users': users})
 
 @login_required
+@admin_or_standard_user_required
 def payment_page(request):
     rate_plans = RatePlan.objects.all()
 
     if request.method == 'POST':
-        amount = request.POST.get('amount')
+        # amount = request.POST.get('amount')
         selected_plan_name = request.POST.get('plan')
 
         try:
             rate_plan = RatePlan.objects.get(name=selected_plan_name)
+            amount = rate_plan.price
         except RatePlan.DoesNotExist:
             messages.error(request, "Invalid rate plan selected.")
             return redirect('payment_page')
@@ -403,14 +405,36 @@ def payment_page(request):
         subscription, created = Subscription.objects.get_or_create(user=request.user)
         subscription.active = True
         subscription.rate_plan = rate_plan  # Assign the selected rate plan
-        subscription.start_date = timezone.now()
-        subscription.end_date = timezone.now() + timedelta(days=30)  # Example: 1-month subscription
+        subscription.start_date = datetime.now()
+        subscription.end_date = datetime.now() + timedelta(days=30)  # Example: 1-month subscription
         subscription.save()
 
         messages.success(request, f"Payment successful! {rate_plan.name.capitalize()} Plan activated.")
         return redirect('vm_list')
 
     return render(request, 'vm_management/payment_page.html', {'rate_plans': rate_plans})
+
+@admin_required
+def get_all_payments(request):
+    # Get all payment records
+    payments = Payment.objects.all()
+
+    # Pass the payment records to the template or as JSON
+    context = {
+        'payments': payments
+    }
+    return render(request, 'vm_management/admin_payments.html', context)
+
+@login_required
+def get_user_payments(request):
+    # Get the logged-in user's payment records
+    user_payments = Payment.objects.filter(user=request.user)
+
+    # Pass the user's payment records to the template or as JSON
+    context = {
+        'user_payments': user_payments
+    }
+    return render(request, 'vm_management/user_payments.html', context)
 
 @login_required
 def subscription_page(request):
