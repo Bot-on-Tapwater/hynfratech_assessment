@@ -116,7 +116,7 @@ def google_complete(request):
             'username': email,  # Username can be set as email
             'first_name': first_name,
             'last_name': last_name,
-            'role': UserRole.GUEST  # Default role as GUEST
+            'role': UserRole.STANDARD_USER  # Default role as GUEST
         })
 
         # Log the user in
