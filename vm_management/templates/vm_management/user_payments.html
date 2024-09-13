@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Payment Records</title>
+  </head>
+  <body>
+    <h1>Your Payment Records</h1>
+    <table border="1">
+      <tr>
+        <th>Amount</th>
+        <th>Status</th>
+        <th>Due Date</th>
+        <th>Is Overdue</th>
+      </tr>
+      {% for payment in user_payments %}
+      <tr>
+        <td>{{ payment.amount }}</td>
+        <td>{{ payment.status }}</td>
+        <td>{{ payment.due_date }}</td>
+        <td>{{ payment.is_overdue }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </body>
+</html>

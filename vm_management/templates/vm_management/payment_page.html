@@ -3,14 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Payment page</title>
+    <title>Payment Page</title>
   </head>
   <body>
+    <h1>Select a Rate Plan</h1>
+
     <form method="post">
       {% csrf_token %}
-      <label for="amount">Payment Amount</label>
-      <input type="text" name="amount" required />
+
+      <label for="plan">Choose a rate plan:</label>
+      <select name="plan" id="plan" required>
+        {% for plan in rate_plans %}
+        <option value="{{ plan.name }}">
+          {{ plan.name }} - {{ plan.price }} USD
+        </option>
+        {% endfor %}
+      </select>
+
+      <br /><br />
+
       <button type="submit">Pay</button>
     </form>
+
+    {% if messages %}
+    <ul>
+      {% for message in messages %}
+      <li>{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
   </body>
 </html>
