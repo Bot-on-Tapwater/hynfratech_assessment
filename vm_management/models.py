@@ -1,5 +1,9 @@
+from datetime import timedelta
 from django.db import models
 from accounts.models import CustomUser  # Import the CustomUser model from accounts app
+from datetime import datetime, timedelta
+from django.utils import timezone
+from django.forms.models import model_to_dict
 
 class VM(models.Model):
     name = models.CharField(max_length=100)
@@ -68,9 +72,39 @@ class Payment(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     timestamp = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('completed', 'Completed')])
+    due_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"Payment of {self.amount} by {self.user.username} - {self.status}"
+
+    def save(self, *args, **kwargs):
+        # Only set the due_date if the status is 'pending' and it hasn't been set yet
+        if self.status == 'pending' and self.due_date is None:
+            if self.timestamp is None:
+                self.timestamp = datetime.now()  # Set timestamp to now if it's not set
+            self.due_date = self.timestamp + timedelta(days=30)
+        super().save(*args, **kwargs)
+
+    def is_overdue(self):
+        # Check if the payment is overdue
+        if self.status == 'pending' and self.due_date and timezone.now() > self.due_date:
+            return True
+        return False
+
+    def is_in_good_standing(self):
+        # Check if user has any overdue payments
+        pending_payments = Payment.objects.filter(user=self.user, status='pending')
+        for payment in pending_payments:
+            if payment.is_overdue():
+                return False
+        return True
+
+    def to_dict(self):
+        # Convert the model fields to a dictionary
+        payment_dict = model_to_dict(self)
+        # Add the is_overdue field to the dictionary
+        payment_dict['is_overdue'] = self.is_overdue()
+        return payment_dict
 
 class RatePlan(models.Model):
     PLAN_CHOICES = [
