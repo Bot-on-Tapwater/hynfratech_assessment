@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta, timezone
+from functools import wraps
 import os
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .models import VM, ActionLog, Payment, Subscription, RatePlan
+from .models import VM, ActionLog, Payment, Subscription, RatePlan, Backup
 import subprocess
 
 import logging
@@ -21,44 +22,29 @@ from django.conf import settings
 
 import paramiko
 
+from accounts.views import admin_or_standard_user_required, admin_required
+
 logger = logging.getLogger(__name__)
 
 host_username = os.environ.get('HOST_USER')
 host_home = os.environ.get('HOST_HOME')
 host_password = os.environ.get('HOST_PASSWORD')
 home_dir = os.getenv('HOME', '/root')  # Default to '/root' if HOME is not set
+host_ip = os.getenv('HOST_IP')
 
-def add_host_to_known_hosts(hostname):
-    ssh = paramiko.SSHClient()
-    ssh.load_system_host_keys()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(hostname, username=host_username, password=os.environ.get('PASSWORD'))
-    ssh.close()
+def subscription_required(view_func):
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        try:
+            subscription = Subscription.objects.get(user=request.user)
+        except Subscription.DoesNotExist:
+            return redirect('subscription_page')
 
-def generate_ssh_key():
-    ssh_dir = os.path.join(home_dir, '.ssh')
-    if not os.path.exists(ssh_dir):
-        os.makedirs(ssh_dir)  # Create .ssh directory if it doesn't exist
+        if not subscription.active:
+            return redirect('subscription_page')
 
-    key_path = os.path.join(ssh_dir, 'id_rsa')
-    if not os.path.exists(key_path):
-        subprocess.run(['ssh-keygen', '-t', 'rsa', '-b', '2048', '-f', key_path, '-N', ''])
-        print("SSH key generated.")
-    else:
-        print("SSH key already exists.")
-
-
-def copy_public_key_to_host(host, username):
-    public_key_path = os.path.join('/root', '.ssh', 'id_rsa.pub')
-    # Make sure the public key exists
-    if os.path.exists(public_key_path):
-        # Use the public key path when calling ssh-copy-id
-        subprocess.run(['ssh-copy-id', '-i', public_key_path, '-o', 'StrictHostKeyChecking=no', f'{username}@{host}'])
-        print(f"Public key copied to {host}.")
-    else:
-        print("Public key file not found.")
-    
-    add_host_to_known_hosts(host)
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
 
 def run_vboxmanage_command(host, username, password, command):
     print(f"HOST: {host}, USERNAME: {username}, PASSWORD: {password}, COMMAND: {command}")
@@ -98,11 +84,7 @@ def send_smtp_email(subject, body, to_email):
     except Exception as e:
         print(f"An error occurred while sending email: {e}")
 
-def calculate_price(disk_size):
-    price_per_mb = 0.01  # Example price per MB
-    return disk_size * price_per_mb
-
-@login_required
+@admin_or_standard_user_required
 def vm_list(request):
     # Fetch all VMs belonging to the logged-in user
     user_vms = VM.objects.filter(user=request.user)
@@ -110,10 +92,11 @@ def vm_list(request):
     # Pass the VMs to the template
     return render(request, 'vm_management/vm_list.html', {'vms': user_vms})
 
-@login_required
+@admin_or_standard_user_required
+@subscription_required
 def create_vm(request):
     user = request.user
-    
+
     # Check subscription and VM limits
     try:
         subscription = Subscription.objects.get(user=user)
@@ -148,16 +131,36 @@ def create_vm(request):
         cpu = int(request.POST.get('cpu', 1))
         memory = int(request.POST.get('memory', 256))
 
-        host_ip = '192.168.1.191'
-        host_username = os.environ.get('HOST_USER')
+        # Calculate price based on disk size
+        price_per_mb = 0.01  # Example price per MB
+        extra_mb = max(disk_size - 1024, 0)
+        price = extra_mb * price_per_mb
 
-        if not host_username:
-            raise ValueError("USER environment variable is not set.")
+        # Create a payment entry with status pending
+        Payment.objects.create(
+            user=user,
+            amount=price,
+            status='pending'
+        )
 
-        # generate_ssh_key()
-        # copy_public_key_to_host(host_ip, host_username)
+        # Check if host credentials are set
+        host_username = os.getenv('USER')
+        host_ip = os.getenv('HOST_IP')
+        host_password = os.getenv('PASSWORD')
+
+        if not host_username or not host_ip or not host_password:
+            raise ValueError("Environment variables for host connection are not set.")
 
         # VM creation commands via paramiko
+        def run_vboxmanage_command(host_ip, host_username, host_password, command):
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(host_ip, username=host_username, password=host_password)
+            stdin, stdout, stderr = ssh.exec_command(command)
+            print(stdout.read().decode())
+            print(stderr.read().decode())
+            ssh.close()
+
         create_vm_cmd = f'vboxmanage createvm --name {name} --register'
         modify_vm_cmd = f'vboxmanage modifyvm {name} --memory {memory} --cpus {cpu} --vram 16 --nic1 nat'
         create_hd_cmd = f'vboxmanage createhd --filename ~/VirtualBox\\ VMs/{name}/{name}.vdi --size {disk_size}'
@@ -167,20 +170,16 @@ def create_vm(request):
         run_vboxmanage_command(host_ip, host_username, host_password, create_hd_cmd)
 
         # Save VM in database
-        vm = VM.objects.create(name=name, user=request.user, disk_size=disk_size, status='stopped', cpu=cpu, memory=memory)
-        ActionLog.objects.create(action_type='create', vm=vm, user=request.user)
+        vm = VM.objects.create(name=name, user=user, disk_size=disk_size, status='stopped', cpu=cpu, memory=memory, price=price)
+        ActionLog.objects.create(action_type='create', vm=vm, user=user)
 
         return redirect('vm_list')
 
     return render(request, 'vm_management/create_vm.html')
 
-@login_required
+@admin_or_standard_user_required
 def configure_vm(request, vm_id):
     vm = VM.objects.get(id=vm_id)
-
-    host_ip = '192.168.1.191'
-    host_username = os.environ.get('HOST_USER')
-    host_password = os.environ.get('HOST_PASSWORD')
 
     if not host_username or not host_password:
         raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
@@ -219,13 +218,9 @@ def configure_vm(request, vm_id):
 
     return render(request, 'vm_management/configure_vm.html', {'vm': vm})
 
-@login_required
+@admin_or_standard_user_required
 def delete_vm(request, vm_id):
     vm = VM.objects.get(id=vm_id)
-
-    host_ip = '192.168.1.191'
-    host_username = os.environ.get('HOST_USER')
-    host_password = os.environ.get('HOST_PASSWORD')
 
     if not host_username or not host_password:
         raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
@@ -239,32 +234,51 @@ def delete_vm(request, vm_id):
 
     return redirect('vm_list')
 
-@login_required
+@subscription_required
 def backup_vm(request, vm_id):
-    vm = VM.objects.get(id=vm_id)
+    try:
+        vm = VM.objects.get(id=vm_id)
+    except VM.DoesNotExist:
+        messages.error(request, "VM does not exist.")
+        return redirect('vm_list')
 
-    host_ip = '192.168.1.191'
-    host_username = os.environ.get('HOST_USER')
-    host_password = os.environ.get('HOST_PASSWORD')
+    # Retrieve user's subscription
+    try:
+        subscription = Subscription.objects.get(user=request.user)
+    except Subscription.DoesNotExist:
+        messages.error(request, "You don't have an active subscription.")
+        return redirect('subscription_page')
 
-    if not host_username or not host_password:
-        raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
+    # Check if the subscription is active
+    if not subscription.active:
+        messages.error(request, "Your subscription is inactive. Please make a payment to create more backups.")
+        return redirect('payment_page')
+
+    # Check the number of backups the user has created
+    user_backup_count = Backup.objects.filter(user=request.user).count()
+    if user_backup_count >= subscription.rate_plan.max_backups:
+        messages.error(request, "You've reached your backup limit.")
+        return redirect('vm_list')
+
+    if not host_username or not host_ip or not host_password:
+        raise ValueError("HOST_USER, HOST_IP, or HOST_PASSWORD environment variables are not set.")
 
     # Use vboxmanage to take a snapshot (backup)
-    snapshot_cmd = f'vboxmanage snapshot {vm.name} take backup'
+    snapshot_cmd = f'vboxmanage snapshot {vm.name} take --name backup'
     run_vboxmanage_command(host_ip, host_username, host_password, snapshot_cmd)
 
+    # Create a Backup record in the database
+    Backup.objects.create(vm=vm, user=request.user)
+
+    # Log the action
     ActionLog.objects.create(action_type='backup', vm=vm, user=request.user)
-    
+
+    messages.success(request, "Backup created successfully.")
     return redirect('vm_list')
 
-@login_required
+@admin_or_standard_user_required
 def start_vm(request, vm_id):
     vm = VM.objects.get(id=vm_id)
-
-    host_ip = '192.168.1.191'
-    host_username = os.environ.get('HOST_USER')
-    host_password = os.environ.get('HOST_PASSWORD')
 
     if not host_username or not host_password:
         raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
@@ -280,13 +294,9 @@ def start_vm(request, vm_id):
     
     return redirect('vm_list')
 
-@login_required
+@admin_or_standard_user_required
 def stop_vm(request, vm_id):
     vm = VM.objects.get(id=vm_id)
-
-    host_ip = '192.168.1.191'
-    host_username = os.environ.get('HOST_USER')
-    host_password = os.environ.get('HOST_PASSWORD')
 
     if not host_username or not host_password:
         raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
@@ -302,32 +312,9 @@ def stop_vm(request, vm_id):
     
     return redirect('vm_list')
 
-@login_required
-def restart_vm(request, vm_id):
-    vm = VM.objects.get(id=vm_id)
-
-    host_ip = '192.168.1.191'
-    host_username = os.environ.get('HOST_USER')
-    host_password = os.environ.get('HOST_PASSWORD')
-
-    if not host_username or not host_password:
-        raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
-
-    if vm.user == request.user:  # Ensure user owns the VM
-        restart_vm_cmd = f'vboxmanage controlvm {vm.name} reset'
-        run_vboxmanage_command(host_ip, host_username, host_password, restart_vm_cmd)
-
-        ActionLog.objects.create(action_type='restart', vm=vm, user=request.user)
-    
-    return redirect('vm_list')
-
-@login_required
+@admin_or_standard_user_required
 def vm_details(request, vm_id):
     vm = VM.objects.get(id=vm_id)
-
-    host_ip = '192.168.1.191'
-    host_username = os.environ.get('HOST_USER')
-    host_password = os.environ.get('HOST_PASSWORD')
 
     if not host_username or not host_password:
         raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
@@ -376,7 +363,7 @@ def transfer_vm(vm_id, new_user_id, original_user):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-@login_required
+@admin_required
 def transfer_vm_view(request, vm_id):
     if request.method == 'POST':
         new_user_id = request.POST.get('new_user_id')
