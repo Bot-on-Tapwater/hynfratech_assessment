@@ -8,20 +8,11 @@ class VM(models.Model):
     status = models.CharField(max_length=20, choices=[('running', 'Running'), ('stopped', 'Stopped')])
     disk_size = models.IntegerField()  # Disk size in MB
     cpu = models.IntegerField(default=1)  # Default to 1 CPU
-    memory = models.IntegerField(default=1024)  # Memory in MB, default to 1024 MB
+    memory = models.IntegerField(default=256)  # Memory in MB, default to 1024 MB
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Price in currency
 
     def __str__(self):
         return self.name
-
-    def save(self, *args, **kwargs):
-        # Calculate the price before saving
-        self.price = self.calculate_price(self.disk_size)
-        super().save(*args, **kwargs)
-
-    def calculate_price(self, disk_size):
-        price_per_mb = 0.01  # Example price per MB
-        return disk_size * price_per_mb
 
     def to_dict(self):
         return {
@@ -34,6 +25,24 @@ class VM(models.Model):
             'cpu': self.cpu,
             'memory': self.memory,
             'price': self.price,
+        }
+    
+class Backup(models.Model):
+    vm = models.ForeignKey(VM, on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(blank=True, null=True)  # Optional field for description
+
+    def __str__(self):
+        return f"Backup for {self.vm.name} by {self.user.username} on {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'vm': self.vm.to_dict(),
+            'user': self.user.username,
+            'created_at': self.created_at.isoformat(),
+            'description': self.description,
         }
 
 class ActionLog(models.Model):
@@ -78,6 +87,20 @@ class RatePlan(models.Model):
 
     def __str__(self):
         return f"{self.name.capitalize()} Plan"
+
+    @classmethod
+    def create_plans(cls):
+        # Define the plans
+        plans = [
+            {'name': 'bronze', 'max_vms': 1, 'max_backups': 1, 'price': 100},
+            {'name': 'silver', 'max_vms': 2, 'max_backups': 2, 'price': 200},
+            {'name': 'gold', 'max_vms': 4, 'max_backups': 4, 'price': 400},
+            {'name': 'platinum', 'max_vms': 8, 'max_backups': 8, 'price': 800},
+        ]
+
+        # Create the plans
+        for plan in plans:
+            cls.objects.get_or_create(**plan)
 
 class Subscription(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
