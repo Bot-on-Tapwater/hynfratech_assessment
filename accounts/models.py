@@ -7,6 +7,6 @@ class UserRole(models.TextChoices):
     GUEST = 'Guest', 'Guest'
 
 class CustomUser(AbstractUser):
-    role = models.CharField(max_length=50, choices=UserRole.choices, default=UserRole.GUEST)
+    role = models.CharField(max_length=50, choices=UserRole.choices, default=UserRole.STANDARD_USER)
 
 # Add any other fields you need for the user model.
