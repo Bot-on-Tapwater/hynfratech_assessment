@@ -81,17 +81,17 @@ def login(request):
         form = LoginForm()
     return render(request, 'accounts/login.html', {'form': form})
 
-@login_required
+# @login_required
 def home(request):
-    if request.user.role == UserRole.ADMIN:
-        # Admin-specific logic
-        pass
-    elif request.user.role == UserRole.STANDARD_USER:
-        # Standard user-specific logic
-        pass
-    elif request.user.role == UserRole.GUEST:
-        # Guest-specific logic
-        pass
+    # if request.user.role == UserRole.ADMIN:
+    #     # Admin-specific logic
+    #     pass
+    # elif request.user.role == UserRole.STANDARD_USER:
+    #     # Standard user-specific logic
+    #     pass
+    # elif request.user.role == UserRole.GUEST:
+    #     # Guest-specific logic
+    #     pass
     return render(request, 'accounts/home.html')
 
 @csrf_exempt
@@ -133,4 +133,4 @@ def logout(request):
     Logs out the user (Custom or Google) and redirects to the login page.
     """
     auth_logout(request)  # This will log out any authenticated user
-    return redirect('login')
+    return redirect('home')
