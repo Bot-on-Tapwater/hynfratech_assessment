@@ -10,7 +10,7 @@ class VM(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=[('running', 'Running'), ('stopped', 'Stopped')])
-    disk_size = models.IntegerField()  # Disk size in MB
+    disk_size = models.IntegerField(default=1024)  # Disk size in MB
     cpu = models.IntegerField(default=1)  # Default to 1 CPU
     memory = models.IntegerField(default=256)  # Memory in MB, default to 1024 MB
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Price in currency
@@ -144,7 +144,7 @@ class Subscription(models.Model):
     end_date = models.DateTimeField(null=True, blank=True)
 
     parent_account = models.ForeignKey(CustomUser, related_name='managed_users', on_delete=models.SET_NULL, null=True, blank=True)
-    is_parent = models.BooleanField(default=False)  # Defines whether this account is a parent or child account
+    is_parent = models.BooleanField(default=True)  # Defines whether this account is a parent or child account
 
     def __str__(self):
         return f"Subscription for {self.user.username}: {self.rate_plan.name if self.rate_plan else 'No Plan'}"
