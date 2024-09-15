@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>All Users</title>
+  </head>
+  <body>
+    <h1>All Users</h1>
+
+    <table border="1">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Payment Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in user_details_list %}
+        <tr>
+          <td>{{ user.username }}</td>
+          <td>{{ user.email }}</td>
+          <td>{{ user.role }}</td>
+          <td>
+            {% if user.has_overdue_payments %}
+            <span style="color: red">Overdue Payments</span>
+            {% else %} In Good Standing {% endif %}
+          </td>
+          <td>
+            <!-- Button to deactivate the user's subscription -->
+            <form
+              action="{% url 'deactivate_subscription' user_id=user.id %}"
+              method="POST"
+              style="display: inline"
+            >
+              {% csrf_token %}
+              <button type="submit">Suspend Account</button>
+            </form>
+
+            <!-- Button to activate the user's subscription -->
+            <form
+              action="{% url 'activate_subscription' user_id=user.id %}"
+              method="POST"
+              style="display: inline"
+            >
+              {% csrf_token %}
+              <button type="submit">Activate Account</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>

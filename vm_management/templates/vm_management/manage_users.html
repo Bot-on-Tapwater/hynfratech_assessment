@@ -3,13 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Manage Users</title>
   </head>
   <body>
     <h2>Manage Users</h2>
     <ul>
       {% for user in managed_users %}
-      <li>{{ user.user.username }} - Plan: {{ user.rate_plan.name }}</li>
+      <li>
+        {{ user.user.username }} - Plan: {{ user.rate_plan.name }}
+        <form
+          method="POST"
+          action="{% url 'remove_user' user.user.id %}"
+          style="display: inline"
+        >
+          {% csrf_token %}
+          <button type="submit">Remove</button>
+        </form>
+      </li>
+      {% empty %}
+      <li>No users to manage.</li>
       {% endfor %}
     </ul>
 
