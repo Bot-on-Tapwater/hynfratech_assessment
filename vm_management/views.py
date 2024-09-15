@@ -1,7 +1,9 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from django.utils import timezone
 from functools import wraps
 import os
-from django.shortcuts import render, redirect
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth.decorators import login_required
 from .models import VM, ActionLog, Payment, Subscription, RatePlan, Backup
 import subprocess
@@ -29,7 +31,7 @@ logger = logging.getLogger(__name__)
 host_username = os.environ.get('HOST_USER')
 host_home = os.environ.get('HOST_HOME')
 host_password = os.environ.get('HOST_PASSWORD')
-home_dir = os.getenv('HOME', '/root')  # Default to '/root' if HOME is not set
+home_dir = os.getenv('HOST_HOME', '/root')  # Default to '/root' if HOME is not set
 host_ip = os.getenv('HOST_IP')
 
 def subscription_required(view_func):
@@ -135,23 +137,8 @@ def create_vm(request):
             status='pending'
         )
 
-        # Check if host credentials are set
-        host_username = os.getenv('USER')
-        host_ip = os.getenv('HOST_IP')
-        host_password = os.getenv('PASSWORD')
-
         if not host_username or not host_ip or not host_password:
             raise ValueError("Environment variables for host connection are not set.")
-
-        # VM creation commands via paramiko
-        def run_vboxmanage_command(host_ip, host_username, host_password, command):
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(host_ip, username=host_username, password=host_password)
-            stdin, stdout, stderr = ssh.exec_command(command)
-            print(stdout.read().decode())
-            print(stderr.read().decode())
-            ssh.close()
 
         create_vm_cmd = f'vboxmanage createvm --name {name} --register'
         modify_vm_cmd = f'vboxmanage modifyvm {name} --memory {memory} --cpus {cpu} --vram 16 --nic1 nat'
@@ -456,7 +443,7 @@ def subscription_page(request):
 
     return render(request, 'vm_management/subscription_page.html', {'rate_plans': rate_plans})
 
-@login_required
+@admin_or_standard_user_required
 def manage_users(request):
     if not request.user.subscription.is_parent:
         messages.error(request, "You do not have permission to manage other users.")
@@ -476,3 +463,143 @@ def manage_users(request):
         return redirect('manage_users')
 
     return render(request, 'vm_management/manage_users.html', {'managed_users': managed_users})
+
+@admin_or_standard_user_required
+def remove_user(request, user_id):
+    if not request.user.subscription.is_parent:
+        messages.error(request, "You do not have permission to manage other users.")
+        return redirect('subscription_page')
+
+    # Retrieve the user to be removed
+    subscription = get_object_or_404(Subscription, user_id=user_id, parent_account=request.user)
+
+    # Remove the user
+    subscription.delete()
+
+    messages.success(request, "User removed successfully.")
+    return redirect('manage_users')
+
+@admin_required
+def get_logs(request):
+    # Retrieve all action logs
+    logs = ActionLog.objects.all().order_by('-timestamp')
+
+    # Render the logs to the template
+    return render(request, 'vm_management/get_logs.html', {'logs': logs})
+
+@admin_required
+def deactivate_subscription(request, user_id):
+    # Get the user object or return 404 if not found
+    user = get_object_or_404(CustomUser, id=user_id)
+
+    # Try to get the user's subscription, if it exists
+    try:
+        subscription = Subscription.objects.get(user=user)
+    except Subscription.DoesNotExist:
+        # If no subscription exists, do nothing and return a message
+        return HttpResponse(f"{user.username} does not have a subscription.", status=404)
+
+    # Set the subscription to inactive if it exists
+    subscription.active = False
+    subscription.end_date = timezone.now()  # Optionally set end date to now
+    subscription.save()
+
+    return HttpResponse(f"Subscription for {user.username} is now inactive.")
+
+@admin_required
+def activate_subscription(request, user_id):
+    # Get the user object or return 404 if not found
+    user = get_object_or_404(CustomUser, id=user_id)
+
+    # Try to get the user's subscription, if it exists
+    try:
+        subscription = Subscription.objects.get(user=user)
+    except Subscription.DoesNotExist:
+        # If no subscription exists, do nothing and return a message
+        return HttpResponse(f"{user.username} does not have a subscription.", status=404)
+
+    # Set the subscription to active if it exists
+    subscription.active = True
+    subscription.end_date = None  # Optionally clear the end date
+    subscription.start_date = timezone.now()  # Set start date to now if activating
+    subscription.save()
+
+    return HttpResponse(f"Subscription for {user.username} is now active.")
+
+@admin_required
+def user_details(request, user_id):
+    # Get the user object or 404 if not found
+    user = get_object_or_404(CustomUser, id=user_id)
+
+    # Get all payments for this user
+    payments = Payment.objects.filter(user=user)
+
+    # Check if there are any overdue payments
+    has_overdue_payments = any(payment.is_overdue() for payment in payments)
+
+    # Prepare the data to pass to the template
+    context = {
+        'username': user.username,
+        'email': user.email,
+        'role': user.role,
+        'has_overdue_payments': has_overdue_payments,
+    }
+
+    return render(request, 'vm_management/user_details.html', context)
+
+@admin_required
+def all_users_details(request):
+    # Get all users
+    users = CustomUser.objects.all()
+
+    # Prepare a list to hold user details
+    user_details_list = []
+
+    for user in users:
+        # Get all payments for each user
+        payments = Payment.objects.filter(user=user)
+
+        # Check if the user has any overdue payments
+        has_overdue_payments = any(payment.is_overdue() for payment in payments)
+
+        # Prepare the user's details
+        user_details = {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'role': user.role,
+            'has_overdue_payments': has_overdue_payments,
+        }
+
+        # Add the user's details to the list
+        user_details_list.append(user_details)
+
+    # Pass the list of user details to the template
+    context = {
+        'user_details_list': user_details_list
+    }
+
+    return render(request, 'vm_management/all_users_details.html', context)
+
+@admin_or_standard_user_required
+def change_rate_plan(request, plan):
+    # Get the currently logged-in user
+    user = request.user
+
+    # Get the rate plan by name
+    try:
+        new_rate_plan = RatePlan.objects.get(name=plan)
+    except RatePlan.DoesNotExist:
+        return HttpResponse(f"Rate plan '{plan}' does not exist.", status=404)
+    
+    # Get or create the user's subscription
+    try:
+        subscription = Subscription.objects.get(user=user)
+    except Subscription.DoesNotExist:
+        return HttpResponse(f"You do not have a subscription.", status=404)
+    
+    # Update the subscription's rate plan
+    subscription.rate_plan = new_rate_plan
+    subscription.save()
+    
+    return HttpResponse(f"Rate plan for {user.username} has been updated to {new_rate_plan.name}.")
