@@ -140,19 +140,18 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
         run: |
-          # Setup SSH to VPS
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # Create askpass script
-          echo '#!/bin/bash' > askpass.sh
-          echo 'echo "$VPS_PASSWORD"' >> askpass.sh
-          chmod +x askpass.sh
-
-          # SSH into VPS and deploy
+          # SSH into VPS and create askpass script remotely
           ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << 'EOF'
+            echo '#!/bin/bash' > askpass.sh
+            echo 'echo "$VPS_PASSWORD"' >> askpass.sh
+            chmod +x askpass.sh
             export SUDO_ASKPASS="$PWD/askpass.sh"
+
+            # Run your sudo commands
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
             sudo -A docker pull botontapwater/hynfratech-assessment:latest
 
