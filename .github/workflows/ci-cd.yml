@@ -77,9 +77,9 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
 
           # SSH into VPS and install Docker, Kubernetes, Minikube, and VirtualBox
-          ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << 'EOF'
-            # Avoid asking for a password with sudo
-            echo 'lab ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/disable-password
+          ssh -t -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << 'EOF'
+            set -e
+            echo 'lab ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/lab-nopasswd
 
             # 1. Install Docker
             if ! [ -x "$(command -v docker)" ]; then
