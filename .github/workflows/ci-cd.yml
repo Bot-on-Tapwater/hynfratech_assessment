@@ -89,7 +89,8 @@ jobs:
             if ! command -v docker &> /dev/null; then
               echo "Installing Docker..."
               run_sudo "apt-get update"
-              run_sudo "apt-get install -y docker.io"
+              run_sudo "apt-get install docker"
+              run_sudo "apt-get install docker-compose"
               run_sudo "systemctl enable docker"
               run_sudo "systemctl start docker"
             else
