@@ -138,33 +138,23 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
         run: |
           # Setup SSH to VPS
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # SSH into VPS and deploy the Kubernetes files
+          # Create askpass script
+          echo '#!/bin/bash' > askpass.sh
+          echo 'echo "$VPS_PASSWORD"' >> askpass.sh
+          chmod +x askpass.sh
+
+          # SSH into VPS and deploy
           ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << 'EOF'
-
-            # Function to run sudo commands
-            run_sudo() {
-              echo "$VPS_PASSWORD" | sudo -S \$1
-            }
-
-            # Pull the latest Docker image
+            export SUDO_ASKPASS="$PWD/askpass.sh"
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-            run_sudo "docker pull botontapwater/hynfratech-assessment:latest"
+            sudo -A docker pull botontapwater/hynfratech-assessment:latest
 
-            # # Apply Kubernetes manifests
-            # kubectl apply -f pvc.yml
-            # kubectl apply -f postgres-deployment.yml
-            # kubectl apply -f django-deployment.yml
-
-            # # Optionally restart any pods (if needed)
-            # # kubectl rollout restart deployment your-deployment-name
-
-            # # Verify the deployment
-            # kubectl get pods
-            # kubectl get svc
+            # Add other deployment commands here
           EOF
