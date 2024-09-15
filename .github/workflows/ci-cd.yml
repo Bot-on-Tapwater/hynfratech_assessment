@@ -154,7 +154,7 @@ jobs:
 
             # Pull the latest Docker image
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-            docker pull botontapwater/hynfratech-assessment:latest
+            run_sudo "docker pull botontapwater/hynfratech-assessment:latest"
 
             # # Apply Kubernetes manifests
             # kubectl apply -f pvc.yml
