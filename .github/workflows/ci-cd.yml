@@ -13,6 +13,17 @@ jobs:
     name: Build and Test
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_DB: hynfratech
+          POSTGRES_USER: botontapwater
+          POSTGRES_PASSWORD: TwoGreen1.
+        ports:
+          - 5432:5432
+        options: --health-cmd "pg_isready -U $POSTGRES_USER" --health-interval 10s
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
