@@ -78,7 +78,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << EOF
             echo "lab ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/lab
-            sudo whoami
+            sudo apt update
             sudo apt-get install -y docker
             sudo apt-get install -y docker-compose
             sudo systemctl enable docker
