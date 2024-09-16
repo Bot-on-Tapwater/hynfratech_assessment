@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from functools import wraps
 import os
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth.decorators import login_required
 from .models import VM, ActionLog, Payment, Subscription, RatePlan, Backup
@@ -48,13 +48,13 @@ def subscription_required(view_func):
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 
-def run_vboxmanage_command(host, username, password, command):
+def run_vboxmanage_command(host, username, password, command, port=2112):
     print(f"HOST: {host}, USERNAME: {username}, PASSWORD: {password}, COMMAND: {command}")
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     # Connect using the password
-    ssh.connect(host, username=username, password=password)
+    ssh.connect(host, port=port, username=username, password=password)
 
     stdin, stdout, stderr = ssh.exec_command(command)
     output = stdout.read().decode()
@@ -448,6 +448,8 @@ def manage_users(request):
     if not request.user.subscription.is_parent:
         messages.error(request, "You do not have permission to manage other users.")
         return redirect('subscription_page')
+    
+    user_subscription = Subscription.objects.filter(user=request.user).first()
 
     # List users managed by this account
     managed_users = Subscription.objects.filter(parent_account=request.user)
@@ -462,7 +464,7 @@ def manage_users(request):
         messages.success(request, f"{child_user.username} added to your account.")
         return redirect('manage_users')
 
-    return render(request, 'vm_management/manage_users.html', {'managed_users': managed_users})
+    return render(request, 'vm_management/manage_users.html', {'managed_users': managed_users, 'user_subscription': user_subscription})
 
 @admin_or_standard_user_required
 def remove_user(request, user_id):
@@ -484,8 +486,10 @@ def get_logs(request):
     # Retrieve all action logs
     logs = ActionLog.objects.all().order_by('-timestamp')
 
+    logs_dicts = [log.to_dict() for log in logs]
+
     # Render the logs to the template
-    return render(request, 'vm_management/get_logs.html', {'logs': logs})
+    return render(request, 'vm_management/get_logs.html', {'logs': logs_dicts})
 
 @admin_required
 def deactivate_subscription(request, user_id):
@@ -603,3 +607,18 @@ def change_rate_plan(request, plan):
     subscription.save()
     
     return HttpResponse(f"Rate plan for {user.username} has been updated to {new_rate_plan.name}.")
+
+@admin_or_standard_user_required
+def mark_payments_completed(request, payment_id):
+    # Ensure the user is authenticated
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "User not authenticated"}, status=403)
+    
+    # Get the specific pending payment for the logged-in user
+    payment = get_object_or_404(Payment, id=payment_id, user=request.user, status='pending')
+
+    # Mark the payment as completed
+    payment.status = 'completed'
+    payment.save()
+
+    return JsonResponse({"message": f"Payment {payment_id} marked as completed."})
