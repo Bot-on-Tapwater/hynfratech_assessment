@@ -48,13 +48,14 @@ def subscription_required(view_func):
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 
-def run_vboxmanage_command(host, username, password, command, port=2112):
+def run_vboxmanage_command(host, username, password, command):
     print(f"HOST: {host}, USERNAME: {username}, PASSWORD: {password}, COMMAND: {command}")
+    port = 2112
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     # Connect using the password
-    ssh.connect(host, port=port, username=username, password=password)
+    ssh.connect(host, port, username=username, password=password)
 
     stdin, stdout, stderr = ssh.exec_command(command)
     output = stdout.read().decode()
@@ -67,7 +68,6 @@ def run_vboxmanage_command(host, username, password, command, port=2112):
     #     raise Exception(f"Error executing command: {error}")
     
     return output
-
 
 def send_smtp_email(subject, body, to_email):
     msg = MIMEMultipart()
