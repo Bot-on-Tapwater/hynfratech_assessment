@@ -59,95 +59,29 @@ jobs:
           docker push botontapwater/hynfratech-assessment:latest
 
   deploy:
-    name: Deploy to VPS
-    runs-on: ubuntu-latest
-    needs: build
+    name: Setup Passwordless Sudo on VPS
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    on:
+      workflow_dispatch: # This allows the workflow to be triggered manually
 
-      - name: SSH into VPS and Install Docker, Kubernetes, Minikube, and VirtualBox
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
-          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+    jobs:
+      configure-sudo:
+        runs-on: ubuntu-latest
 
-          ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << EOF
-            set -e
-            echo "Starting installation process..."
+        steps:
+          - name: Checkout repository
+            uses: actions/checkout@v3
 
-            # Function to run sudo commands
-            run_sudo() {
-              echo "$VPS_PASSWORD" | sudo -S \$1
-            }
+          - name: Install SSH client
+            run: sudo apt-get install -y openssh-client
 
-            # # 1. Install Docker
-            # if ! command -v docker &> /dev/null; then
-            #   echo "Installing Docker..."
-            #   run_sudo "apt-get update"
-            #   # run_sudo "apt-get install docker"
-            #   # run_sudo "apt-get install docker-compose"
-            #   run_sudo "systemctl enable docker"
-            #   run_sudo "systemctl start docker"
-            # else
-            #   echo "Docker is already installed."
-            # fi
+          - name: Add SSH key
+            uses: webfactory/ssh-agent@v0.7.0
+            with:
+              ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-            # # 2. Install kubectl
-            # if ! command -v kubectl &> /dev/null; then
-            #   echo "Installing kubectl..."
-            #   run_sudo "apt-get update && apt-get install -y apt-transport-https ca-certificates curl"
-            #   curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | run_sudo "apt-key add -"
-            #   echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | run_sudo "tee /etc/apt/sources.list.d/kubernetes.list"
-            #   run_sudo "apt-get update"
-            #   run_sudo "apt-get install -y kubectl"
-            # else
-            #   echo "kubectl is already installed."
-            # fi
-
-            # # 3. Install Minikube
-            # if ! command -v minikube &> /dev/null; then
-            #   echo "Installing Minikube..."
-            #   curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-            #   run_sudo "install minikube-linux-amd64 /usr/local/bin/minikube"
-            # else
-            #   echo "Minikube is already installed."
-            # fi
-
-            # # 4. Start Minikube
-            # echo "Starting Minikube..."
-            # run_sudo "minikube start --driver=none"
-
-            # # 5. Install VirtualBox
-            # if ! command -v VBoxManage &> /dev/null; then
-            #   echo "Installing VirtualBox..."
-            #   run_sudo "apt-get update"
-            #   run_sudo "apt-get install -y virtualbox"
-            # else
-            #   echo "VirtualBox is already installed."
-            # fi
-
-            echo "Installation process completed."
-          EOF
-      - name: Deploy to Kubernetes on VPS
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-
-          # SSH into VPS and deploy
-          ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << 'EOF'
-            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-            docker pull botontapwater/hynfratech-assessment:latest
-
-            # Add other deployment commands here
-          EOF
+          - name: Configure passwordless sudo
+            run: |
+              ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << 'EOF'
+                'echo "lab ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/${{ secrets.VPS_USERNAME }}'
+                sudo whoami
