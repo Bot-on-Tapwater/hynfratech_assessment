@@ -13,6 +13,7 @@
         <th>Status</th>
         <th>Due Date</th>
         <th>Is Overdue</th>
+        <th>Action</th>
       </tr>
       {% for payment in user_payments %}
       <tr>
@@ -20,6 +21,17 @@
         <td>{{ payment.status }}</td>
         <td>{{ payment.due_date }}</td>
         <td>{{ payment.is_overdue }}</td>
+        <td>
+          {% if payment.status == "pending" %}
+          <form
+            method="POST"
+            action="{% url 'mark_payments_completed' payment.id %}"
+          >
+            {% csrf_token %}
+            <button type="submit">Pay</button>
+          </form>
+          {% else %} Completed {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </table>
