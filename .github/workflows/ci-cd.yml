@@ -79,12 +79,22 @@ jobs:
           ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << EOF
             echo "lab ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/lab
             sudo whoami
-            sudo apt-get install docker
-            sudo apt-get install docker-compose
+            sudo apt-get install -y docker
+            sudo apt-get install -y docker-compose
             sudo systemctl enable docker
             sudo systemctl start docker
-            snap install kubectl --classic
-            sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
-            sudo apt install virtualbox
-            sudo service virtualbox start
+
+            # Clone the repo if it doesn't exist, otherwise pull the latest changes
+            if [ ! -d "/home/lab/hynfratech_assessment" ]; then
+              git clone https://github.com/Bot-on-Tapwater/hynfratech_assessment.git /home/lab/hynfratech_assessment
+            else
+              cd /home/lab/hynfratech_assessment && git pull
+            fi
+
+            # Navigate to the repo and build and run the Docker containers
+            cd /home/lab/hynfratech_assessment
+            sudo docker-compose up --build -d
+
+            # Ensure the app is exposed on port 8000
+            sudo docker-compose ps
           EOF
