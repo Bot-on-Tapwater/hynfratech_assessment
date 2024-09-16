@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - master
+  workflow_dispatch: # This allows manual triggering of the workflow
 
 jobs:
   build:
@@ -60,28 +61,22 @@ jobs:
 
   deploy:
     name: Setup Passwordless Sudo on VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    on:
-      workflow_dispatch: # This allows the workflow to be triggered manually
+      - name: Install SSH client
+        run: sudo apt-get install -y openssh-client
 
-    jobs:
-      configure-sudo:
-        runs-on: ubuntu-latest
+      - name: Add SSH key
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-        steps:
-          - name: Checkout repository
-            uses: actions/checkout@v3
-
-          - name: Install SSH client
-            run: sudo apt-get install -y openssh-client
-
-          - name: Add SSH key
-            uses: webfactory/ssh-agent@v0.7.0
-            with:
-              ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-          - name: Configure passwordless sudo
-            run: |
-              ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << 'EOF'
-                'echo "lab ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/${{ secrets.VPS_USERNAME }}'
-                sudo whoami
+      - name: Configure passwordless sudo
+        run: |
+          ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << EOF
+            echo "lab ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/lab
+            sudo whoami
+          EOF
