@@ -14,6 +14,7 @@ urlpatterns = [
     path('payment/', views.payment_page, name='payment_page'),
     path('payments/admin/', views.get_all_payments, name='admin_payments'),
     path('payments/user/', views.get_user_payments, name='user_payments'),
+    path('payments/complete/<int:payment_id>/', views.mark_payments_completed, name='mark_payments_completed'),
     
     # Subscription page to view/upgrade/downgrade plan
     path('subscription/', views.subscription_page, name='subscription_page'),
