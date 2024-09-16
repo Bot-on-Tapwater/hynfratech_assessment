@@ -54,6 +54,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -203,3 +204,6 @@ REST_FRAMEWORK = {
 # CSRF Settings
 CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_HTTPONLY = False
+CSRF_TRUSTED_ORIGINS = ['https://hynfratech.botontapwater.com']
+CORS_ALLOW_CREDENTIALS = True
+CORS_ORIGIN_WHITELIST = ('https://hynfratech.botontapwater.com')
