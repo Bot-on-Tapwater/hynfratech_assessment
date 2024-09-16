@@ -7,6 +7,16 @@
   </head>
   <body>
     <h2>Manage Users</h2>
+
+    {% if user_subscription %}
+    <h3>Your Subscription Details</h3>
+    <p>Plan: {{ user_subscription.rate_plan.name }}</p>
+    <p>Status: {{ user_subscription.status }}</p>
+    <!-- Adjust according to your model -->
+    {% else %}
+    <p>You do not have an active subscription.</p>
+    {% endif %}
+
     <ul>
       {% for user in managed_users %}
       <li>
