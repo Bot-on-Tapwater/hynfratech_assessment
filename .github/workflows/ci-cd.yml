@@ -74,9 +74,17 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Configure passwordless sudo
+      - name: Configure passwordless sudo and run commands
         run: |
           ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << EOF
             echo "lab ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/lab
             sudo whoami
+            sudo apt-get install docker
+            sudo apt-get install docker-compose
+            sudo systemctl enable docker
+            sudo systemctl start docker
+            snap install kubectl --classic
+            sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
+            sudo apt install virtualbox
+            sudo service virtualbox start
           EOF
