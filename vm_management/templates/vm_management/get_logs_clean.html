@@ -1,0 +1,28 @@
+{% extends 'vm_management/vm_list_clean.html' %}
+{% load static %}
+{% block title%}Action Logs{% endblock %}
+{% block extra_styles %}
+<link rel="stylesheet" href="{% static 'vm_management/styles.css' %}" />{% endblock %}
+
+{% block page_content %}
+<div class="logs-container">
+    <div class="logs-headings">
+        <div>ID</div>
+        <div>Action Type</div>
+        <div>VM</div>
+        <div>User</div>
+        <div>Timestamp</div>
+    </div>
+    {% for log in logs %}
+    <div class="log-records">
+        <div>{{ log.id }}</div>
+        <div>{{ log.action_type }}</div>
+        <div>{{ log.vm.name }}</div>
+        <div>{{ log.user }}</div>
+        <div>{{ log.timestamp }}</div>
+    </div>
+    <hr style="width: 100%;">
+    {% endfor %}
+</div>
+
+{% endblock %}

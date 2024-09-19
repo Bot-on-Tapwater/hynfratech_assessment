@@ -1,0 +1,21 @@
+{% extends "accounts/register_clean.html" %}
+{% load static %}
+{% block title%}Transfer Virtual Machine{% endblock %}
+{% block content %}
+<div class="form-container">
+    <div onclick="window.history.back()" class="close-icon"></div>
+    <h1 class="form-title">Transfer VM</h1>
+    <form method="POST" action="{% url 'transfer_vm' vm_id=vm.id %}">
+        {% csrf_token %}
+        <!-- Input fields -->
+        <select name="new_user_id" class="form-input" required>
+            {% for user in users %}
+            <option value="{{ user.id }}">{{ user.username }}</option>
+            {% endfor %}
+        </select>
+
+        <!-- Submit button -->
+        <button type="submit" class="form-button">Transfer</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'vm_management/vm_list_clean.html' %}
+{% load static %}
+{% block title%}Billing Information{% endblock %}
+{% block extra_styles %}
+<link rel="stylesheet" href="{% static 'vm_management/styles.css' %}" />{% endblock %}
+
+{% block page_content %}
+<div class="logs-container">
+    <div class="logs-headings">
+        <div>Amount</div>
+        <div>Status</div>
+        <div>Due Date</div>
+        <div>Is Overdue</div>
+        <div>Action</div>
+    </div>
+    {% for payment in user_payments %}
+    <div class="log-records">
+        <div>{{ payment.amount }}</div>
+        <div>{{ payment.status }}</div>
+        <div>{{ payment.due_date }}</div>
+        <div>{{ payment.is_overdue }}</div>
+        <div>{% if payment.status == "pending" %}
+            <a href="{% url 'mark_payments_completed' payment.id %}"><div id="button-pay">Pay</div></a>
+            {% else %} Completed {% endif %}
+        </div>
+    </div>
+    <hr style="width: 100%;">
+    {% endfor %}
+</div>
+
+{% endblock %}

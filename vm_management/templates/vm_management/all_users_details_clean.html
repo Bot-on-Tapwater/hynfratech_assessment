@@ -1,0 +1,38 @@
+{% extends 'vm_management/vm_list_clean.html' %}
+{% load static %}
+{% block title%}All Users Details{% endblock %}
+{% block extra_styles %}
+<link rel="stylesheet" href="{% static 'vm_management/styles.css' %}" />{% endblock %}
+
+{% block page_content %}
+<div class="user-cards-section">
+    {% for user in user_details_list %}
+    <div class="user-card">
+        <div class="icon"></div>
+        <div class="line"></div>
+        <div class="user-card-details">
+            <div class="text">
+                <div><b>Username:</b> {{ user.username }}</div>
+                <div><b>Email:</b> {{ user.email }}</div>
+                <div><b>Role:</b> {{ user.role }}</div>
+                <div><b>Payment Overdue:</b> {{ user.has_overdue_payments }}</div>
+                <div><b>Subscription Active:</b> {{ user.is_active }}</div>
+            </div>
+        </div>
+        <div class="user-buttons">
+            {% if user.is_active %}
+            <a href="{% url 'deactivate_subscription' user_id=user.id %}">
+                <div class="button">Suspend</div>
+            </a>
+            {% else %}
+            <a href="{% url 'activate_subscription' user_id=user.id %}">
+                <div class="button">Reinstate</div>
+            </a>
+            {% endif %}
+        </div>
+
+</div>
+{% endfor %}
+</div>
+
+{% endblock %}

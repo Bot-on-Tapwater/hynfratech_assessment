@@ -1,0 +1,117 @@
+{% extends "accounts/home_clean.html" %}
+{% load static %}
+{% block title%}Services{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{% static 'vm_management/styles.css' %}" />{% endblock %}
+{% block content %}
+<div class="services-first-heading">
+    <div>SELECT PLAN</div>
+</div>
+<div class="plan-cards">
+    <div class="bronze">
+        <form id="plan-form-bronze" action="{% url 'payment_page' %}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="plan" value="bronze"> <!-- or the plan name dynamically -->
+            <div class="plan-card bronze" onclick="submitForm()">
+                <div class="plan-card-circle bronze">
+                    <div class="text-robot-16-800-normal">Bronze</div>
+                </div>
+                <div class="plan-card-rectangle">
+                    <div class="text-robot-16-800-normal">Create up to 1 of our state of the art virtual machines and 1
+                        backup(s)</div>
+                    <div class="price">100 USD/Month</div>
+                </div>
+            </div>
+        </form>
+        <script>
+            function submitForm() {
+                document.getElementById('plan-form-bronze').submit();
+            }
+        </script>
+    </div>
+    <div class="silver">
+        <form id="plan-form-silver" action="{% url 'payment_page' %}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="plan" value="silver"> <!-- or the plan name dynamically -->
+            <div class="plan-card silver" onclick="submitForm()">
+                <div class="plan-card-circle silver">
+                    <div class="text-robot-16-800-normal">Silver</div>
+                </div>
+                <div class="plan-card-rectangle">
+                    <div class="text-robot-16-800-normal">Create up to 2 of our state of the art virtual machines and 2
+                        backup(s)</div>
+                    <div class="price">200 USD/Month</div>
+                </div>
+            </div>
+        </form>
+        <script>
+            function submitForm() {
+                document.getElementById('plan-form-silver').submit();
+            }
+        </script>
+    </div>
+    <div class="gold">
+        <form id="plan-form-gold" action="{% url 'payment_page' %}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="plan" value="gold"> <!-- or the plan name dynamically -->
+            <div class="plan-card gold" onclick="submitForm()">
+                <div class="plan-card-circle gold">
+                    <div class="text-robot-16-800-normal">Gold</div>
+                </div>
+                <div class="plan-card-rectangle">
+                    <div class="text-robot-16-800-normal">Create up to 4 of our state of the art virtual machines and 4
+                        backup(s)</div>
+                    <div class="price">400 USD/Month</div>
+                </div>
+            </div>
+        </form>
+        <script>
+            function submitForm() {
+                document.getElementById('plan-form-gold').submit();
+            }
+        </script>
+    </div>
+    <div class="platinum">
+        <form id="plan-form-platinum" action="{% url 'payment_page' %}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="plan" value="platinum"> <!-- or the plan name dynamically -->
+            <div class="plan-card platinum" onclick="submitForm()">
+                <div class="plan-card-circle platinum">
+                    <div class="text-robot-16-800-normal">Platinum</div>
+                </div>
+                <div class="plan-card-rectangle">
+                    <div class="text-robot-16-800-normal">Create up to 8 of our state of the art virtual machines and 8
+                        backup(s)</div>
+                    <div class="price">800 USD/Month</div>
+                </div>
+            </div>
+        </form>
+        <script>
+            function submitForm() {
+                document.getElementById('plan-form-platinum').submit();
+            }
+        </script>
+    </div>
+</div>
+<div class="services-first-heading">
+    <div>SERVICES</div>
+</div>
+<div class="service-cards">
+    <div class="service-card-container">
+        <div class="service-card-container-icon"></div>
+        <div class="service-card-container-line"></div>
+        <div class="service-card-container-text">Hosted Voice Services</div>
+    </div>
+    <div class="service-card-container">
+        <div class="service-card-container-icon virtual-server"></div>
+        <div class="service-card-container-line"></div>
+        <div class="service-card-container-text">Virtual Servers</div>
+    </div>
+    <div class="service-card-container">
+        <div class="service-card-container-icon cctv"></div>
+        <div class="service-card-container-line"></div>
+        <div class="service-card-container-text">CCTV Back Up Services</div>
+    </div>
+</div>
+
+{% endblock %}
+

@@ -1,0 +1,152 @@
+{% extends 'vm_management/vm_list_clean.html' %}
+{% load static %}
+{% block title %}My plans{% endblock %}
+{% block extra_styles %}
+<link rel="stylesheet" href="{% static 'vm_management/styles.css' %}" />{% endblock %}
+
+{% block page_content %}
+{% if user_subscription %}
+<div class="user-plan">
+    <div class="current-plan"></div>
+    {% if user_subscription.rate_plan.name == 'bronze' %}
+    <div class="bronze"></div>
+    <form id="plan-form-bronze" action="{% url 'payment_page' %}" method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="plan" value="bronze">
+        <div class="plan-card bronze" onclick="submitForm()">
+            <div class="plan-card-circle bronze">
+                <div class="text-robot-16-800-normal">Bronze</div>
+            </div>
+            <div class="plan-card-rectangle">
+                <div class="text-robot-16-800-normal">Create up to 1 of our state of the art virtual machines and 1
+                    backup(s)</div>
+                <div class="price">100 USD/Month</div>
+            </div>
+        </div>
+    </form>
+    <script>
+        function submitForm() {
+            document.getElementById('plan-form-bronze').submit();
+        }
+    </script>
+    {% elif user_subscription.rate_plan.name == 'silver' %}
+    <div class="silver">
+        <form id="plan-form-silver" action="{% url 'payment_page' %}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="plan" value="silver">
+            <div class="plan-card silver" onclick="submitForm()">
+                <div class="plan-card-circle silver">
+                    <div class="text-robot-16-800-normal">Silver</div>
+                </div>
+                <div class="plan-card-rectangle">
+                    <div class="text-robot-16-800-normal">Create up to 2 of our state of the art virtual machines and 2
+                        backup(s)</div>
+                    <div class="price">200 USD/Month</div>
+                </div>
+            </div>
+        </form>
+        <script>
+            function submitForm() {
+                document.getElementById('plan-form-silver').submit();
+            }
+        </script>
+    </div>
+    {% elif user_subscription.rate_plan.name == 'gold' %}
+    <div class="gold">
+        <form id="plan-form-gold" action="{% url 'payment_page' %}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="plan" value="gold">
+            <div class="plan-card gold" onclick="submitForm()">
+                <div class="plan-card-circle gold">
+                    <div class="text-robot-16-800-normal">Gold</div>
+                </div>
+                <div class="plan-card-rectangle">
+                    <div class="text-robot-16-800-normal">Create up to 4 of our state of the art virtual machines and 4
+                        backup(s)</div>
+                    <div class="price">400 USD/Month</div>
+                </div>
+            </div>
+        </form>
+        <script>
+            function submitForm() {
+                document.getElementById('plan-form-gold').submit();
+            }
+        </script>
+    </div>
+    {% elif user_subscription.rate_plan.name == 'platinum' %}
+    <div class="platinum">
+        <form id="plan-form-platinum" action="{% url 'payment_page' %}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="plan" value="platinum">
+            <div class="plan-card platinum" onclick="submitForm()">
+                <div class="plan-card-circle platinum">
+                    <div class="text-robot-16-800-normal">Platinum</div>
+                </div>
+                <div class="plan-card-rectangle">
+                    <div class="text-robot-16-800-normal">Create up to 8 of our state of the art virtual machines and 8
+                        backup(s)</div>
+                    <div class="price">800 USD/Month</div>
+                </div>
+            </div>
+        </form>
+        <script>
+            function submitForm() {
+                document.getElementById('plan-form-platinum').submit();
+            }
+        </script>
+    </div>
+    {% endif %}
+    <div class="change-plan">
+        <div class="change-plan-title">Change plan</div>
+        <a href="{% url 'change_rate_plan' plan='platinum' %}">
+            <div class="options" style="color: #e5e4e2;">PLATINUM</div>
+        </a>
+        <a href="{% url 'change_rate_plan' plan='gold' %}">
+            <div class="options" style="color: #FFD700;">GOLD</div>
+        </a>
+        <a href="{% url 'change_rate_plan' plan='silver' %}">
+            <div class="options" style="color: #C0C0C0;">SILVER</div>
+        </a>
+        <a href="{% url 'change_rate_plan' plan='bronze' %}">
+            <div class="options" style="color: #A77044;">BRONZE</div>
+        </a>
+    </div>
+</div>
+<div class="manage-users">
+    <div class="change-plan-title" style="text-decoration: none;">Manage Users (Child accounts)</div>
+    <hr style="width: 50%;">
+    <div class="add-child-account">
+        <div style="font-size: 20px;">Add child account</div>
+        <form style="display: flex; align-items: center; flex-direction: column;" method="POST"
+            action="{% url 'manage_users' %}">
+            {% csrf_token %}
+            <!-- Input fields -->
+            <select name="child_username" class="form-input" required>
+                {% for user in users %}
+                <option value="{{ user.id }}">{{ user.username }}</option>
+                {% endfor %}
+            </select>
+
+            <!-- Submit button -->
+            <button style="width:150px; height: 30px; background: white; color: black;" type="submit"
+                class="form-button">Add child</button>
+        </form>
+    </div>
+    <div class="child-accounts-details">
+        <div style="font-size: 20px;">Child accounts</div>
+        {% for user in managed_users %}
+        <div><span class="child-account-name"> {{ user.user.username }}</span><span class="remove-account-button"><a
+                    href="{% url 'remove_user' user.user.id %}">
+                    <div style="background: red; border: none; font-size: 16px; margin:10px;" id="button-pay">Remove</div>
+                </a></span></div>
+        {% empty %}
+        <div>No users to manage</div>
+        {% endfor %}
+
+    </div>
+</div>
+{% else %}
+<div>No subscription found.</div>
+{% endif %}
+
+{% endblock %}

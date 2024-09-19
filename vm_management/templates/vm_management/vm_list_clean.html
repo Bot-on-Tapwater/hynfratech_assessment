@@ -1,0 +1,86 @@
+{% extends 'vm_management/services_clean.html' %}
+{% load static %}
+{% block title%}VM List{% endblock %}
+{% block extra_styles %}
+<link rel="stylesheet" href="{% static 'vm_management/styles.css' %}" />{% endblock %}
+
+{% block content %}
+<!-- New content for the content block goes here -->
+<div class="nav-resources">
+  <div class="nav-resources-buttons">
+    <div class="change-view-buttons">
+    {% if user.role == 'Admin' %}
+      <a href="{% url 'logs' %}">
+        <div class="button">Logs</div>
+      </a>
+    {% endif %}
+    {% if user.role == 'Admin' %}
+      <a href="{% url 'all_users_details' %}">
+        <div class="button">Users</div>
+      </a>
+      {% endif %}
+      {% if user.role == 'Admin' or user.role == 'Standard User' %}
+      <a href="{% url 'vm_list' %}">
+        <div class="button">VM's</div>
+      </a>
+      {% endif %}
+    </div>
+    {% block create_vm %}
+    <a href="{% url 'create_vm' %}">
+      <div class="create-new-vm-button button">
+        <div class="create-new-vm-button-icon"></div>
+        <div class="create-new-vm-button-text">Create new virtual machine</div>
+      </div>
+    </a>
+    {% endblock %}
+  </div>
+  <div class="role-invoices">
+    <div class="role-button">Role: {{ user.role }}</div>
+    <div class="billing">
+      <div class="billing-icon"></div>
+      <div class="billing-line"></div>
+      <a href="{% url 'user_payments' %}">
+        <div class="invoices">My invoices</div>
+      </a>
+      <a href="{% url 'manage_users' %}">
+        <div class="plans">My plans</div>
+      </a>
+    </div>
+  </div>
+</div>
+{% block page_content %}
+<div class="vm-cards-section">
+  {% for vm in vms %}
+  <div class="vm-card">
+    <div class="vm-card-details">
+      <div class="icon"></div>
+      <div class="line"></div>
+      <div class="details">
+        <div class="text">
+          <div><b>Name:</b>  {{ vm.name }}</div>
+          <div style="color: blue;"><b>Status:</b>  {{ vm.status }}</div>
+          <div><b>Disk Size:</b>  {{ vm.disk_size }} MB</div>
+          <div><b>CPU:</b>  {{ vm.cpu }} Core(s)</div>
+          <div><b>Memory:</b>  {{ vm.memory }} MB</div>
+          <div><b>Price:</b>  {{ vm.price }} USD</div>
+        </div>
+
+      </div>
+    </div>
+    <div class="vm-card-buttons">
+      <a href="{% url 'start_vm' vm_id=vm.id %}"><div class="button">Start</div></a>
+      <a href="{% url 'stop_vm' vm_id=vm.id %}"><div class="button">Stop</div></a>
+      <a href="{% url 'vm_details' vm_id=vm.id %}"><div class="button">Details</div></a>
+      <a href="{% url 'configure_vm' vm_id=vm.id %}"><div class="button">Update</div></a>
+      <a href="{% url 'backup_vm' vm_id=vm.id %}"><div class="button">Backup</div></a>
+      {% if user.role == 'Admin' %}
+      <a href="{% url 'transfer_vm' vm_id=vm.id %}"><div class="button">Transfer</div></a>
+      {% endif %}
+      <a href="{% url 'delete_vm' vm_id=vm.id %}"><div class="button" style="background: #FF0000;">Delete</div></a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}
+{% endblock %}

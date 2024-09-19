@@ -1,0 +1,13 @@
+{% extends "vm_management/vm_list_clean.html" %}
+{% load static %}
+{% block title%}Virtual Machine Details{% endblock %}
+{% block content %}
+<div class="form-container-details">
+    <div onclick="window.history.back()" class="close-icon"></div>
+    <h1 class="form-title">VM Details</h1>
+    {% for key, value in vm_details.items %}
+    <div class="vm-details"><b>{{ key }}:</b> <span style="color: blue;">{{ value }}</span></div>
+    {% endfor %}
+
+</div>
+{% endblock %}

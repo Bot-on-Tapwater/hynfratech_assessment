@@ -1,0 +1,23 @@
+{% extends "accounts/register_clean.html" %}
+{% load static %}
+{% block title%}Configure Virtul Machine{% endblock %}
+{% block content %}
+<div class="form-container">
+    <div onclick="window.history.back()" class="close-icon"></div>
+    <h1 class="form-title">Configure VM</h1>
+    <form method="POST" action="{% url 'configure_vm' vm_id=vm.id %}">
+        {% csrf_token %}
+        <!-- Input fields -->
+        <!-- <input type="text" class="form-input" name="name" placeholder="Enter new name" required> -->
+        <input type="number" class="form-input" name="cpus" placeholder="Enter # of CPU cores" required>
+        <input type="number" class="form-input" name="memory" placeholder="Enter memory amount" required>
+        <select name="network" class="form-input" required>
+            <option value="nat">NAT</option>
+            <option value="bridged">Bridged</option>
+            <option value="hostonly">Host-Only</option>
+        </select>
+        <!-- Submit button -->
+        <button type="submit" class="form-button">Update</button>
+    </form>
+</div>
+{% endblock %}
