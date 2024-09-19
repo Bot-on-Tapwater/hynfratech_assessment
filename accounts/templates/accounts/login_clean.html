@@ -1,0 +1,43 @@
+{% extends "accounts/register_clean.html" %}
+{% load static %}
+{% block title%}Login{% endblock %}
+{% block extra_script %}<script src="https://accounts.google.com/gsi/client" async defer></script>{% endblock %}
+{% block content %}
+<div class="form-container">
+    <div onclick="window.history.back()" class="close-icon"></div>
+    <h1 class="form-title">Login with</h1>
+    <!-- <div class="icon-container"><div class="sso-icon"></div></div> -->
+    <div
+    id="g_id_onload"
+    data-client_id="501902744902-k3luiggqbspd6vhlfo20asvcllt0h8kl.apps.googleusercontent.com"
+    data-context="signin"
+    data-ux_mode="popup"
+    data-login_uri="http://localhost:8000/accounts/google-complete/"
+    data-auto_prompt="false"
+  ></div>
+
+  <div
+    class="g_id_signin"
+    data-type="standard"
+    data-shape="rectangular"
+    data-theme="filled_black"
+    data-text="signin_with"
+    data-size="large"
+    data-logo_alignment="left"
+  ></div>
+    
+    <h1 class="form-title">or</h1>
+    <form method="POST" action="{% url 'login' %}">
+        {% csrf_token %}
+        <!-- Input fields -->
+        <input type="text" class="form-input" name="username" placeholder="Username" required>
+        <input type="password" class="form-input" name="password" placeholder="Password" required>
+
+        <!-- Submit button -->
+        <button type="submit" class="form-button">Login</button>
+    </form>
+
+    <!-- Text after the button -->
+    <p class="form-text">Don'thave an account? <a class="unstlyled" href="{% url 'register' %}">Register here</a></p>
+</div>
+{% endblock %}

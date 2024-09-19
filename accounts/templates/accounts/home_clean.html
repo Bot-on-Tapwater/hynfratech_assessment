@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Home{% endblock %}</title>
+  <!-- Load static files -->
+  {% load static %}
+
+  <!-- Link to your CSS file -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
+
+  <link rel="stylesheet" href="{% static 'accounts/styles.css' %}" />
+
+  {% block extra_styles %}{% endblock %}
+  {% block extra_script %}{% endblock %}
+</head>
+
+<body>
+  <header>
+    <nav class="header-nav">
+      <div class="header-nav-text">
+        <div class="navigation"><a href="{% url 'home' %}">Home</a></div>
+        <div class="navigation"><a href="{% url 'services' %}">Services</a></div>
+        <div class="navigation"><a href="{% url 'vm_list' %}">VM's | Resources</a></div>
+      </div>
+    </nav>
+    {% if user.is_authenticated %}
+    <a class="unstyled" href="{% url 'logout' %}">
+      <div class="login-button">
+        <div class="button-text">Logout</div>
+      </div>
+
+      </div>
+    </a>
+    {% else %}
+    <a class="unstyled" href="{% url 'login' %}">
+      <div class="login-button">
+        <div class="button-text">Login - Sign Up</div>
+      </div>
+    </a>
+    {% endif %}
+  </header>
+  <div class="horizontal-line-header"></div>
+  {% block content %}
+  <main class="body-heading-container">
+    <div class="body-heading-center">
+      Scale Smarter, Not Harder: Discover Your Perfect Virtual Machine Today!
+    </div>
+  </main>
+  {% endblock %}
+</body>
+
+</html>

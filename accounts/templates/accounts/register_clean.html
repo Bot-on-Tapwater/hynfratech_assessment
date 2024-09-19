@@ -1,0 +1,74 @@
+{% extends "accounts/home_clean.html" %}
+{% load static %}
+{% block title%}Register{% endblock %}
+{% block extra_styles %}<style>
+    body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        /* Black with 50% opacity */
+        pointer-events: none;
+        /* Ensure clicks pass through overlay */
+        z-index: 9999;
+        /* Make sure it sits on top of the background */
+    }
+</style>{% endblock %}
+{% block extra_script %}{% endblock %}
+{% block content %}
+<div class="form-container">
+    <div onclick="window.history.back()" class="close-icon"></div>
+    <h1 class="form-title">Register</h1>
+    {% if form.username.errors %}
+    <ul class="errorlist">
+        {% for error in form.username.errors %}
+        <li>😔 {{ error }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% if form.email.errors %}
+    <ul class="errorlist">
+        {% for error in form.email.errors %}
+        <li>😔 {{ error }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% if form.password1.errors %}
+    <ul class="errorlist">
+        {% for error in form.password1.errors %}
+        <li>😔 {{ error }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% if form.password2.errors %}
+    <ul class="errorlist">
+        {% for error in form.password2.errors %}
+        <li>😔 {{ error }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    <form method="POST" action="{% url 'register' %}">
+        {% csrf_token %}
+        <!-- Input fields -->
+        <input type="text" class="form-input" name="username" placeholder="Username" required>
+        <select name="role" class="form-input" required>
+            {% for value, label in role_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+        <!-- <input type="text" class="form-input" name="role" placeholder="Role" required> -->
+        <input type="email" class="form-input" name="email" placeholder="Email address" required>
+        <input type="password" class="form-input" name="password1" placeholder="Password" required>
+        <input type="password" class="form-input" name="password2" placeholder="Re-enter password" required>
+
+        <!-- Submit button -->
+        <button type="submit" class="form-button button">Register</button>
+    </form>
+
+    <!-- Text after the button -->
+    <p class="form-text">Already have an account? <a class="unstlyled" href="{% url 'login' %}">Login</a></p>
+</div>
+{% endblock %}
