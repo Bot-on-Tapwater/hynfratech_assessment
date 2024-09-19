@@ -53,7 +53,7 @@ def admin_or_standard_user_required(view_func):
 
 def access_denied(request):
     return render(request, 'accounts/access_denied.html', {
-        'message': "You don't have permission to access this page."
+        'error': "You don't have permission to access this page."
     })
 
 def register(request):
@@ -64,7 +64,9 @@ def register(request):
             return redirect('login')
     else:
         form = CustomUserCreationForm()
-    return render(request, 'accounts/register.html', {'form': form})
+    
+    role_choices = UserRole.choices
+    return render(request, 'accounts/register_clean.html', {'form': form, 'role_choices': role_choices})
 
 @csrf_exempt
 def login(request):
@@ -79,7 +81,7 @@ def login(request):
                 return redirect('home')
     else:
         form = LoginForm()
-    return render(request, 'accounts/login.html', {'form': form})
+    return render(request, 'accounts/login_clean.html', {'form': form})
 
 # @login_required
 def home(request):
@@ -92,7 +94,7 @@ def home(request):
     # elif request.user.role == UserRole.GUEST:
     #     # Guest-specific logic
     #     pass
-    return render(request, 'accounts/home.html')
+    return render(request, 'accounts/home_clean.html')
 
 @csrf_exempt
 def google_complete(request):
