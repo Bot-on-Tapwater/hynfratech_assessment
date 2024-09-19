@@ -476,7 +476,7 @@ def manage_users(request):
     users = CustomUser.objects.exclude(id=request.user.id)  # Exclude the current owner
 
     if request.method == 'POST':
-        child_user = CustomUser.objects.get(id=request.POST.get('child_username'))
+        child_user = CustomUser.objects.get(username=request.POST.get('child_username'))
         child_subscription, created = Subscription.objects.get_or_create(user=child_user)
         child_subscription.parent_account = request.user
         child_subscription.active = True
