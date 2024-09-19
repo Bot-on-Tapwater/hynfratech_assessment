@@ -1,0 +1,213 @@
+body {
+  /* position: relative; */
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 800;
+  color: white;
+  /* font-size: 20px; */
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: 100vh;
+  /* height: 100vh; */
+  /* border: 1px solid white; */
+  /* border-left: 1px solid white;
+  border-right: 1px solid white; */
+  background-image: url("images/server-2160321_1280.jpg");
+  background-repeat: no-repeat;
+  background-size: cover;
+  /* background-size: 1440px 1080px; */
+  background-position: center center;
+  /* background-attachment: fixed; */
+  /* overflow: hidden; */
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 75px;
+  /* border: 1px solid black; */
+}
+
+.header-nav-text {
+  display: flex;
+  width: 400px;
+  justify-content: space-between;
+  /* border: 1px solid white; */
+  margin-left: 120px;
+  text-decoration: underline;
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.header-nav-text div a {
+  text-decoration: none;
+  /* Remove underline */
+  color: inherit;
+  /* Inherit color from parent element */
+  font-weight: inherit;
+  /* Inherit font weight from parent element */
+  font-size: inherit;
+  /* Inherit font size from parent element */
+}
+
+.login-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid white;
+  background: #d9d9d9;
+  border-radius: 30px;
+  width: 150px;
+  height: 30px;
+  margin-right: 120px;
+  font-style: normal;
+  font-weight: 800;
+  font-size: 16px;
+  line-height: 19px;
+  color: #000000;
+}
+
+.horizontal-line-header {
+  width: 1100px;
+  border: 2px solid white;
+  margin: 0 auto;
+}
+
+.body-heading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+}
+
+.body-heading-center {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 800;
+  font-size: 64px;
+  line-height: 75px;
+  text-align: center;
+  width: 700px;
+  height: 310px;
+
+  color: #ffffff;
+}
+
+.services-first-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 10vh;
+}
+
+.unstyled {
+  text-decoration: none;
+  /* Remove underline */
+  color: inherit;
+  /* Inherit color from parent element */
+  font-weight: inherit;
+  /* Inherit font weight from parent element */
+  font-size: inherit;
+  /* Inherit font size from parent element */
+}
+
+/* Styling for the form container */
+.form-container {
+  width: 240px;
+  height: 500px;
+  /* margin: 0 auto; */
+  /* padding: 20px; */
+  background-color: #f7f7f7;
+  border-radius: 30px;
+  /* box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); */
+  position: relative;
+  z-index: 10000;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.form-container form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Form title */
+.form-title {
+
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 800;
+  font-size: 20px;
+  /* line-height: 23px; */
+  text-align: center;
+
+  color: #000000;
+
+
+}
+
+/* Input fields */
+.form-input {
+  padding-left: 10px;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 300;
+  font-size: 12px;
+  width: 180px;
+  height: 30px;
+}
+
+/* Submit button */
+.form-button {
+  color: white;
+
+  background: #000000;
+  border-radius: 10px;
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 800;
+  font-size: 16px;
+  width: 180px;
+  height: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10px;
+}
+
+/* Text after the button */
+.form-text {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 800;
+  font-size: 12px;
+
+  color: #000000;
+  /* margin-top: 10px; */
+}
+
+.close-icon {
+  margin-top: 17px;
+  width: 32px;
+  height: 32px;
+  background-image: url("images/close.png");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
+  position: absolute;
+  top: 0;
+  right: 0;
+}
