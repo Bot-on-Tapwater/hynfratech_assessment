@@ -26,6 +26,13 @@ import paramiko
 
 from accounts.views import admin_or_standard_user_required, admin_required
 
+from dotenv import load_dotenv, find_dotenv
+
+# Load environment definition file
+ENV_FILE = find_dotenv()
+if ENV_FILE:
+    load_dotenv(ENV_FILE)
+
 logger = logging.getLogger(__name__)
 
 host_username = os.environ.get('HOST_USER')
@@ -34,23 +41,28 @@ host_password = os.environ.get('HOST_PASSWORD')
 home_dir = os.getenv('HOST_HOME', '/root')  # Default to '/root' if HOME is not set
 host_ip = os.getenv('HOST_IP')
 
+def services_pricing(request):
+    return render(request, "vm_management/services_clean.html")
+
 def subscription_required(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         try:
             subscription = Subscription.objects.get(user=request.user)
         except Subscription.DoesNotExist:
-            return redirect('subscription_page')
+            return redirect('services')
 
         if not subscription.active:
-            return redirect('subscription_page')
+            return redirect('user_payments')
 
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 
 def run_vboxmanage_command(host, username, password, command):
     print(f"HOST: {host}, USERNAME: {username}, PASSWORD: {password}, COMMAND: {command}")
-    port = 2112
+    print(f"HOST: {os.getenv('HOST_IP')}, USERNAME: {os.getenv('HOST_USER')}, PASSWORD: {os.getenv('PASSWORD')},")
+    # port = 2112
+    port = 22
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -92,7 +104,7 @@ def vm_list(request):
     user_vms = VM.objects.filter(user=request.user)
 
     # Pass the VMs to the template
-    return render(request, 'vm_management/vm_list.html', {'vms': user_vms})
+    return render(request, 'vm_management/vm_list_clean.html', {'vms': user_vms})
 
 @admin_or_standard_user_required
 @subscription_required
@@ -154,7 +166,7 @@ def create_vm(request):
 
         return redirect('vm_list')
 
-    return render(request, 'vm_management/create_vm.html')
+    return render(request, 'vm_management/create_vm_clean.html')
 
 @admin_or_standard_user_required
 @subscription_required
@@ -196,7 +208,7 @@ def configure_vm(request, vm_id):
 
         return redirect('vm_list')
 
-    return render(request, 'vm_management/configure_vm.html', {'vm': vm})
+    return render(request, 'vm_management/configure_vm_clean.html', {'vm': vm})
 
 @admin_or_standard_user_required
 @subscription_required
@@ -310,7 +322,14 @@ def vm_details(request, vm_id):
         vm_info_cmd = f'vboxmanage showvminfo {vm.name}'
         vm_info_output = run_vboxmanage_command(host_ip, host_username, host_password, vm_info_cmd)
         
-        return render(request, 'vm_management/vm_details.html', {'vm': vm, 'vm_details': vm_info_output})
+         # Process vm_info_output into a dictionary
+        vm_details_dict = {}
+        for line in vm_info_output.splitlines():
+            if ':' in line:
+                key, value = line.split(':', 1)  # Split by the first colon
+                vm_details_dict[key.strip()] = value.strip()  # Clean up spaces
+
+        return render(request, 'vm_management/vm_details_clean.html', {'vm': vm, 'vm_details': vm_details_dict})
     
     return redirect('vm_list')
 
@@ -367,7 +386,7 @@ def transfer_vm_view(request, vm_id):
 
     vm = VM.objects.get(id=vm_id)
     users = CustomUser.objects.exclude(id=vm.user.id)  # Exclude the current owner
-    return render(request, 'vm_management/transfer_vm.html', {'vm': vm, 'users': users})
+    return render(request, 'vm_management/transfer_vm_clean.html', {'vm': vm, 'users': users})
 
 @login_required
 @admin_or_standard_user_required
@@ -421,7 +440,7 @@ def get_user_payments(request):
     context = {
         'user_payments': user_payments
     }
-    return render(request, 'vm_management/user_payments.html', context)
+    return render(request, 'vm_management/user_payments_clean.html', context)
 
 @login_required
 def subscription_page(request):
@@ -454,8 +473,10 @@ def manage_users(request):
     # List users managed by this account
     managed_users = Subscription.objects.filter(parent_account=request.user)
 
+    users = CustomUser.objects.exclude(id=request.user.id)  # Exclude the current owner
+
     if request.method == 'POST':
-        child_user = CustomUser.objects.get(username=request.POST.get('child_username'))
+        child_user = CustomUser.objects.get(id=request.POST.get('child_username'))
         child_subscription, created = Subscription.objects.get_or_create(user=child_user)
         child_subscription.parent_account = request.user
         child_subscription.active = True
@@ -464,7 +485,7 @@ def manage_users(request):
         messages.success(request, f"{child_user.username} added to your account.")
         return redirect('manage_users')
 
-    return render(request, 'vm_management/manage_users.html', {'managed_users': managed_users, 'user_subscription': user_subscription})
+    return render(request, 'vm_management/manage_users_clean.html', {'managed_users': managed_users, 'user_subscription': user_subscription, 'users':users},)
 
 @admin_or_standard_user_required
 def remove_user(request, user_id):
@@ -489,7 +510,7 @@ def get_logs(request):
     logs_dicts = [log.to_dict() for log in logs]
 
     # Render the logs to the template
-    return render(request, 'vm_management/get_logs.html', {'logs': logs_dicts})
+    return render(request, 'vm_management/get_logs_clean.html', {'logs': logs_dicts})
 
 @admin_required
 def deactivate_subscription(request, user_id):
@@ -501,14 +522,19 @@ def deactivate_subscription(request, user_id):
         subscription = Subscription.objects.get(user=user)
     except Subscription.DoesNotExist:
         # If no subscription exists, do nothing and return a message
-        return HttpResponse(f"{user.username} does not have a subscription.", status=404)
+        # return HttpResponse(f"{user.username} does not have a subscription.", status=404)
+        return render(request, 'accounts/access_denied.html', {'error': f"{user.username} does not have a subscription."})
 
     # Set the subscription to inactive if it exists
     subscription.active = False
     subscription.end_date = timezone.now()  # Optionally set end date to now
     subscription.save()
 
-    return HttpResponse(f"Subscription for {user.username} is now inactive.")
+    previous_url = request.META.get('HTTP_REFERER', '/')
+
+    return redirect(previous_url)
+
+    # return render(request, 'vm_management/all_users_details_clean.html')
 
 @admin_required
 def activate_subscription(request, user_id):
@@ -520,7 +546,7 @@ def activate_subscription(request, user_id):
         subscription = Subscription.objects.get(user=user)
     except Subscription.DoesNotExist:
         # If no subscription exists, do nothing and return a message
-        return HttpResponse(f"{user.username} does not have a subscription.", status=404)
+        return render(request, 'accounts/access_denied.html', {'error': f"{user.username} does not have a subscription."})
 
     # Set the subscription to active if it exists
     subscription.active = True
@@ -528,7 +554,11 @@ def activate_subscription(request, user_id):
     subscription.start_date = timezone.now()  # Set start date to now if activating
     subscription.save()
 
-    return HttpResponse(f"Subscription for {user.username} is now active.")
+    previous_url = request.META.get('HTTP_REFERER', '/')
+
+    return redirect(previous_url)
+
+    # return render(request, 'vm_management/all_users_details_clean.html')
 
 @admin_required
 def user_details(request, user_id):
@@ -566,6 +596,10 @@ def all_users_details(request):
         # Check if the user has any overdue payments
         has_overdue_payments = any(payment.is_overdue() for payment in payments)
 
+        # Get the subscription for the user
+        subscription = Subscription.objects.filter(user=user).first()
+        is_active = subscription.active if subscription else False
+
         # Prepare the user's details
         user_details = {
             'id': user.id,
@@ -573,6 +607,7 @@ def all_users_details(request):
             'email': user.email,
             'role': user.role,
             'has_overdue_payments': has_overdue_payments,
+            'is_active': is_active,
         }
 
         # Add the user's details to the list
@@ -583,7 +618,8 @@ def all_users_details(request):
         'user_details_list': user_details_list
     }
 
-    return render(request, 'vm_management/all_users_details.html', context)
+    return render(request, 'vm_management/all_users_details_clean.html', context)
+
 
 @admin_or_standard_user_required
 def change_rate_plan(request, plan):
@@ -600,13 +636,18 @@ def change_rate_plan(request, plan):
     try:
         subscription = Subscription.objects.get(user=user)
     except Subscription.DoesNotExist:
-        return HttpResponse(f"You do not have a subscription.", status=404)
+        # return HttpResponse(f"You do not have a subscription.", status=404)
+        return render(request, 'accounts/access_denied.html', {'error': f"You do not have a subscription."})
     
     # Update the subscription's rate plan
     subscription.rate_plan = new_rate_plan
     subscription.save()
+
+    previous_url = request.META.get('HTTP_REFERER', '/')
+
+    return redirect(previous_url)
     
-    return HttpResponse(f"Rate plan for {user.username} has been updated to {new_rate_plan.name}.")
+    # return HttpResponse(f"Rate plan for {user.username} has been updated to {new_rate_plan.name}.")
 
 @admin_or_standard_user_required
 def mark_payments_completed(request, payment_id):
@@ -621,4 +662,8 @@ def mark_payments_completed(request, payment_id):
     payment.status = 'completed'
     payment.save()
 
-    return JsonResponse({"message": f"Payment {payment_id} marked as completed."})
+    previous_url = request.META.get('HTTP_REFERER', '/')
+
+    return redirect(previous_url)
+
+    # return JsonResponse({"message": f"Payment {payment_id} marked as completed."})
