@@ -24,12 +24,15 @@ urlpatterns = [
     path('manage-users/', views.manage_users, name='manage_users'),
     path('remove-user/<int:user_id>/', views.remove_user, name='remove_user'),
     path('user/<int:user_id>/deactivate-subscription/', views.deactivate_subscription, name='deactivate_subscription'),
-    path('user/<int:user_id>/activate-subscription/', views.activate_subscription, name='activate_subscription'),
+    path('user/<int:user_id>/activate_subscription/', views.activate_subscription, name='activate_subscription'),
     path('user/<int:user_id>/', views.user_details, name='user_details'),
     path('all-users/', views.all_users_details, name='all_users_details'),
 
     # Action logs
-    path('logs/', views.get_logs, name='logs')
+    path('logs/', views.get_logs, name='logs'),
+
+    # Services page
+    path('services/', views.services_pricing, name='services'),
 ]
 
 
