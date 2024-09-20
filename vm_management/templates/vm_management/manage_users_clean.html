@@ -3,6 +3,7 @@
 {% block title %}My plans{% endblock %}
 {% block extra_styles %}
 <link rel="stylesheet" href="{% static 'vm_management/styles.css' %}" />{% endblock %}
+{% block create_vm %} {% endblock %}
 
 {% block page_content %}
 {% if user_subscription %}
@@ -135,7 +136,7 @@
     <div class="child-accounts-details">
         <div style="font-size: 20px;">Child accounts</div>
         {% for user in managed_users %}
-        <div><span class="child-account-name"> {{ user.user.username }}</span><span class="remove-account-button"><a
+        <div><span style="margin-right: 100px;" class="child-account-name"> {{ user.user.username }}</span><span class="remove-account-button"><a
                     href="{% url 'remove_user' user.user.id %}">
                     <div style="background: red; border: none; font-size: 16px; margin:10px;" id="button-pay">Remove</div>
                 </a></span></div>

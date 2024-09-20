@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>{% block title %}Home{% endblock %}</title>
   <!-- Load static files -->
   {% load static %}
@@ -12,6 +13,9 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
 
   <link rel="stylesheet" href="{% static 'accounts/styles.css' %}" />
+
+
+  <link rel="icon" href="{% static 'images/server.png' %}" type="image/x-icon">
 
   {% block extra_styles %}{% endblock %}
   {% block extra_script %}{% endblock %}

@@ -4,6 +4,8 @@
 {% block extra_styles %}
 <link rel="stylesheet" href="{% static 'vm_management/styles.css' %}" />{% endblock %}
 
+{% block create_vm %} {% endblock %}
+
 {% block page_content %}
 <div class="user-cards-section">
     {% for user in user_details_list %}
