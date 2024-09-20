@@ -62,7 +62,7 @@ def run_vboxmanage_command(host, username, password, command):
     print(f"HOST: {host}, USERNAME: {username}, PASSWORD: {password}, COMMAND: {command}")
     print(f"HOST: {os.getenv('HOST_IP')}, USERNAME: {os.getenv('HOST_USER')}, PASSWORD: {os.getenv('PASSWORD')},")
     # port = 2112
-    port = 22
+    port = os.getenv('HOST_PORT')
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -463,6 +463,7 @@ def subscription_page(request):
     return render(request, 'vm_management/subscription_page.html', {'rate_plans': rate_plans})
 
 @admin_or_standard_user_required
+@subscription_required
 def manage_users(request):
     if not request.user.subscription.is_parent:
         messages.error(request, "You do not have permission to manage other users.")
