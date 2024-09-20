@@ -1,100 +1,100 @@
-name: CI/CD Pipeline
+# name: CI/CD Pipeline
 
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
-  workflow_dispatch: # This allows manual triggering of the workflow
+# on:
+#   push:
+#     branches:
+#       - master
+#   pull_request:
+#     branches:
+#       - master
+#   workflow_dispatch: # This allows manual triggering of the workflow
 
-jobs:
-  build:
-    name: Build and Test
-    runs-on: ubuntu-latest
+# jobs:
+#   build:
+#     name: Build and Test
+#     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:13
-        env:
-          POSTGRES_DB: hynfratech
-          POSTGRES_USER: botontapwater
-          POSTGRES_PASSWORD: TwoGreen1.
-        ports:
-          - 5432:5432
-        options: --health-cmd "pg_isready -U $POSTGRES_USER" --health-interval 10s
+#     services:
+#       postgres:
+#         image: postgres:13
+#         env:
+#           POSTGRES_DB: hynfratech
+#           POSTGRES_USER: botontapwater
+#           POSTGRES_PASSWORD: TwoGreen1.
+#         ports:
+#           - 5432:5432
+#         options: --health-cmd "pg_isready -U $POSTGRES_USER" --health-interval 10s
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
+#       - name: Set up Python
+#         uses: actions/setup-python@v4
+#         with:
+#           python-version: "3.10"
 
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
+#       - name: Install dependencies
+#         run: |
+#           pip install --upgrade pip
+#           pip install -r requirements.txt
 
-      - name: Run tests
-        run: |
-          python manage.py makemigrations
-          python manage.py migrate
-          python manage.py test
+#       - name: Run tests
+#         run: |
+#           python manage.py makemigrations
+#           python manage.py migrate
+#           python manage.py test
 
-      - name: Build Docker image
-        run: |
-          docker build -t botontapwater/hynfratech-assessment:latest .
+#       - name: Build Docker image
+#         run: |
+#           docker build -t botontapwater/hynfratech-assessment:latest .
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+#       - name: Log in to Docker Hub
+#         uses: docker/login-action@v2
+#         with:
+#           username: ${{ secrets.DOCKER_USERNAME }}
+#           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Push Docker image
-        run: |
-          docker push botontapwater/hynfratech-assessment:latest
+#       - name: Push Docker image
+#         run: |
+#           docker push botontapwater/hynfratech-assessment:latest
 
-  deploy:
-    name: Setup Passwordless Sudo on VPS
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+#   deploy:
+#     name: Setup Passwordless Sudo on VPS
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v3
 
-      - name: Install SSH client
-        run: sudo apt-get install -y openssh-client
+#       - name: Install SSH client
+#         run: sudo apt-get install -y openssh-client
 
-      - name: Add SSH key
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+#       - name: Add SSH key
+#         uses: webfactory/ssh-agent@v0.7.0
+#         with:
+#           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Configure passwordless sudo and run commands
-        run: |
-          ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << EOF
-            echo "lab ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/lab
-            sudo apt update
-            sudo apt-get install -y docker
-            sudo apt-get install -y docker-compose
-            sudo systemctl enable docker
-            sudo systemctl start docker
+#       - name: Configure passwordless sudo and run commands
+#         run: |
+#           ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << EOF
+#             echo "lab ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/lab
+#             sudo apt update
+#             sudo apt-get install -y docker
+#             sudo apt-get install -y docker-compose
+#             sudo systemctl enable docker
+#             sudo systemctl start docker
 
-            # Clone the repo if it doesn't exist, otherwise pull the latest changes
-            if [ ! -d "/home/lab/hynfratech_assessment" ]; then
-              git clone https://github.com/Bot-on-Tapwater/hynfratech_assessment.git /home/lab/hynfratech_assessment
-            else
-              cd /home/lab/hynfratech_assessment && git pull
-            fi
+#             # Clone the repo if it doesn't exist, otherwise pull the latest changes
+#             if [ ! -d "/home/lab/hynfratech_assessment" ]; then
+#               git clone https://github.com/Bot-on-Tapwater/hynfratech_assessment.git /home/lab/hynfratech_assessment
+#             else
+#               cd /home/lab/hynfratech_assessment && git pull
+#             fi
 
-            # Navigate to the repo and build and run the Docker containers
-            cd /home/lab/hynfratech_assessment
-            sudo docker-compose up --build -d
+#             # Navigate to the repo and build and run the Docker containers
+#             cd /home/lab/hynfratech_assessment
+#             sudo docker-compose up --build -d
 
-            # Ensure the app is exposed on port 8000
-            sudo docker-compose ps
-          EOF
+#             # Ensure the app is exposed on port 8000
+#             sudo docker-compose ps
+#           EOF
