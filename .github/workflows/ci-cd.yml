@@ -39,20 +39,9 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Pass secrets as environment variables
-      - name: Set environment variables
+      - name: Create .env file
         run: |
-          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> $GITHUB_ENV
-          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> $GITHUB_ENV
-          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> $GITHUB_ENV
-          echo "SOCIAL_AUTH_GOOGLE_OAUTH2_KEY=${{ secrets.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY }}" >> $GITHUB_ENV
-
-      # Wait for PostgreSQL to be ready
-      - name: Wait for PostgreSQL to be ready
-        run: |
-          for i in {1..10}; do
-            pg_isready -h postgres -p 5432 -U ${{ secrets.POSTGRES_USER }} && break || sleep 5
-          done
+          echo "${{ secrets.ENV_FILE_CONTENTS }}" > .env
 
       - name: Run tests
         run: |
