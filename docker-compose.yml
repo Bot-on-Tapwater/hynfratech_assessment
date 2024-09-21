@@ -4,9 +4,9 @@ services:
   db:
     image: postgres:13
     environment:
-      POSTGRES_DB: hynfratech
-      POSTGRES_USER: botontapwater
-      POSTGRES_PASSWORD: TwoGreen1.
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -30,13 +30,13 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE=hynfratech
-      - DATABASE_USERNAME=botontapwater
-      - PASSWORD=TwoGreen1.
+      - DATABASE=${DATABASE}
+      - DATABASE_USERNAME=${DATABASE_USERNAME}
+      - PASSWORD=${PASSWORD}
       - HOST=db
       - PORT=5432
-      - DEBUG=1
-      - DJANGO_SECRET_KEY='0cc8c03f8885c96774a3f1febc083c48f26e3bb0aa9e5315e5060c588d03fa64'
+      - DEBUG=${DEBUG}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
     env_file:
       - .env
     depends_on:
