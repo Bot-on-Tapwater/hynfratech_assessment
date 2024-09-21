@@ -141,8 +141,10 @@ def create_vm(request):
 
     # Check if user has reached their VM creation limit
     if user_vms_count >= plan_limit:
-        messages.error(request, f"You've reached your VM creation limit of {plan_limit} VMs.")
-        return redirect('vm_list')
+        # messages.error(request, f"You've reached your VM creation limit of {plan_limit} VMs.")
+        # return redirect('vm_list')
+        return render(request, 'accounts/access_denied.html', {'error': f"You've reached your VM creation limit of {plan_limit} VMs."})
+        
 
     # VM creation logic
     if request.method == 'POST':
@@ -268,8 +270,9 @@ def backup_vm(request, vm_id):
         user = vm.user
         subscription = Subscription.objects.get(user=user)
     except VM.DoesNotExist:
-        messages.error(request, "VM does not exist.")
-        return redirect('vm_list')
+        # messages.error(request, "VM does not exist.")
+        # return redirect('vm_list')
+        return render(request, 'accounts/access_denied.html', {'error': "VM does not exist."})
 
     # Determine which user should have their limits applied (for multi-client accounts)
     if subscription.parent_account:
@@ -287,8 +290,9 @@ def backup_vm(request, vm_id):
 
     # Check if user has reached their backup creation limit
     if user_backups_count >= plan_limit:
-        messages.error(request, f"You've reached your backup creation limit of {plan_limit} backups.")
-        return redirect('vm_list')
+        # messages.error(request, f"You've reached your backup creation limit of {plan_limit} backups.")
+        # return redirect('vm_list')
+        return render(request, 'accounts/access_denied.html', {'error': f"You've reached your backup creation limit of {plan_limit} backups."})
 
     if not host_username or not host_ip or not host_password:
         raise ValueError("HOST_USER, HOST_IP, or HOST_PASSWORD environment variables are not set.")
@@ -410,8 +414,9 @@ def transfer_vm_view(request, vm_id):
 
         # Validate the new user ID
         if not CustomUser.objects.filter(id=new_user_id).exists():
-            messages.error(request, 'Invalid user selected.')
-            return redirect('vm_list')
+            # messages.error(request, 'Invalid user selected.')
+            # return redirect('vm_list')
+            return render(request, 'accounts/access_denied.html', {'error': 'Invalid user selected.'})
 
         # Call the transfer function
         transfer_vm(vm_id, new_user_id, request.user)
@@ -435,8 +440,9 @@ def payment_page(request):
             rate_plan = RatePlan.objects.get(name=selected_plan_name)
             amount = rate_plan.price
         except RatePlan.DoesNotExist:
-            messages.error(request, "Invalid rate plan selected.")
-            return redirect('payment_page')
+            # messages.error(request, "Invalid rate plan selected.")
+            # return redirect('payment_page')
+            return render(request, 'accounts/access_denied.html', {'error': "Invalid rate plan selected."})
 
         # Create a mock payment and mark it as completed
         payment = Payment.objects.create(user=request.user, amount=amount, status='completed')
@@ -500,8 +506,9 @@ def subscription_page(request):
 @subscription_required
 def manage_users(request):
     if not request.user.subscription.is_parent:
-        messages.error(request, "You do not have permission to manage other users.")
-        return redirect('subscription_page')
+        # messages.error(request, "You do not have permission to manage other users.")
+        # return redirect('subscription_page')
+        return render(request, 'accounts/access_denied.html', {'error': "You do not have permission to manage other users."})
     
     user_subscription = Subscription.objects.filter(user=request.user).first()
 
@@ -525,8 +532,9 @@ def manage_users(request):
 @admin_or_standard_user_required
 def remove_user(request, user_id):
     if not request.user.subscription.is_parent:
-        messages.error(request, "You do not have permission to manage other users.")
-        return redirect('subscription_page')
+        # messages.error(request, "You do not have permission to manage other users.")
+        # return redirect('subscription_page')
+        return render(request, 'accounts/access_denied.html', {'error': "You do not have permission to manage other users."})
 
     # Retrieve the user to be removed
     subscription = get_object_or_404(Subscription, user_id=user_id, parent_account=request.user)
