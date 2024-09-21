@@ -94,9 +94,24 @@ jobs:
             # Navigate to the repo and build and run the Docker containers
             cd /home/lab/hynfratech_assessment
             # sudo docker-compose up --build -d
-            sudo docker-compose up -d
-            sudo docker-compose restart web
+            # sudo docker-compose up -d
+            # sudo docker-compose restart web
 
             # Ensure the app is exposed on port 8000
-            sudo docker-compose ps
+            # sudo docker-compose ps
+          EOF
+
+      # Create and send the .env file to the server
+      - name: Upload .env file to remote server
+        run: |
+          echo "${{ secrets.ENV_FILE_CONTENTS }}" > .env
+          scp -P 2112 .env lab@102.209.68.78:/home/lab/hynfratech_assessment/.env
+
+      - name: Run docker-compose on the server
+        run: |
+          ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << EOF
+            cd /home/lab/hynfratech_assessment
+            sudo docker-compose up -d
+            sudo docker-compose restart web
+            # sudo docker-compose ps
           EOF
