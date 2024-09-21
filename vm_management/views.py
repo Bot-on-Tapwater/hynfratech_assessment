@@ -210,8 +210,8 @@ def configure_vm(request, vm_id):
 
     if request.method == 'POST':
         # Get the configuration data from the form
-        new_memory = request.POST.get('memory')
-        new_cpu = request.POST.get('cpus')
+        new_memory = int(request.POST.get('memory'))
+        new_cpu = int(request.POST.get('cpus'))
 
         # Enforce a maximum disk size of 2048 MB
         if new_memory > 1024:
@@ -250,10 +250,13 @@ def delete_vm(request, vm_id):
         raise ValueError("HOST_USER or HOST_PASSWORD environment variables are not set.")
 
     # Use vboxmanage to delete VM
-    unregister_vm_cmd = f'vboxmanage unregistervm {vm.name} --delete'
+    unregister_vm_cmd = f'vboxmanage unregistervm "{vm.name}" --delete'
     run_vboxmanage_command(host_ip, host_username, host_password, unregister_vm_cmd)
 
+    # Log the action
     ActionLog.objects.create(action_type='delete', vm=vm, user=request.user)
+
+    # Delete the VM record from the database
     vm.delete()
 
     return redirect('vm_list')
