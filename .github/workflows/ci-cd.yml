@@ -42,7 +42,17 @@ jobs:
       # Pass secrets as environment variables
       - name: Set environment variables
         run: |
+          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> $GITHUB_ENV
+          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> $GITHUB_ENV
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> $GITHUB_ENV
           echo "SOCIAL_AUTH_GOOGLE_OAUTH2_KEY=${{ secrets.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY }}" >> $GITHUB_ENV
+
+      # Wait for PostgreSQL to be ready
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          for i in {1..10}; do
+            pg_isready -h postgres -p 5432 -U ${{ secrets.POSTGRES_USER }} && break || sleep 5
+          done
 
       - name: Run tests
         run: |
@@ -83,12 +93,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -p 2112 lab@102.209.68.78 << EOF
             echo "lab ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/lab
-            # sudo apt update
-            # sudo apt-get install -y docker
-            # sudo apt-get install -y docker-compose
-            # sudo systemctl enable docker
-            # sudo systemctl start docker
-
+            
             # Clone the repo if it doesn't exist, otherwise pull the latest changes
             if [ ! -d "/home/lab/hynfratech_assessment" ]; then
               git clone https://github.com/Bot-on-Tapwater/hynfratech_assessment.git /home/lab/hynfratech_assessment
@@ -96,14 +101,8 @@ jobs:
               cd /home/lab/hynfratech_assessment && git pull
             fi
 
-            # Navigate to the repo and build and run the Docker containers
+            # Navigate to the repo
             cd /home/lab/hynfratech_assessment
-            # sudo docker-compose up --build -d
-            # sudo docker-compose up -d
-            # sudo docker-compose restart web
-
-            # Ensure the app is exposed on port 8000
-            # sudo docker-compose ps
           EOF
 
       # Create and send the .env file to the server
@@ -118,5 +117,4 @@ jobs:
             cd /home/lab/hynfratech_assessment
             sudo docker-compose up -d
             sudo docker-compose restart web
-            # sudo docker-compose ps
           EOF
