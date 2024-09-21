@@ -13,7 +13,7 @@ import logging
 from django.core.mail import send_mail
 from django.db import transaction
 
-from accounts.models import CustomUser
+from accounts.models import CustomUser, UserRole
 
 from django.contrib import messages
 
@@ -98,13 +98,27 @@ def send_smtp_email(subject, body, to_email):
     except Exception as e:
         print(f"An error occurred while sending email: {e}")
 
+# @admin_or_standard_user_required
+# def vm_list(request):
+#     # Fetch all VMs belonging to the logged-in user
+#     user_vms = VM.objects.filter(user=request.user)
+
+#     # Pass the VMs to the template
+#     return render(request, 'vm_management/vm_list_clean.html', {'vms': user_vms})
+
 @admin_or_standard_user_required
 def vm_list(request):
-    # Fetch all VMs belonging to the logged-in user
-    user_vms = VM.objects.filter(user=request.user)
+    # Check if the user is an admin
+    if request.user.role == UserRole.ADMIN:
+        # Fetch all VMs for admin users
+        user_vms = VM.objects.all()
+    else:
+        # Fetch only VMs belonging to the logged-in user for standard users
+        user_vms = VM.objects.filter(user=request.user)
 
     # Pass the VMs to the template
     return render(request, 'vm_management/vm_list_clean.html', {'vms': user_vms})
+
 
 @admin_or_standard_user_required
 @subscription_required
@@ -137,17 +151,26 @@ def create_vm(request):
         cpu = int(request.POST.get('cpu', 1))
         memory = int(request.POST.get('memory', 256))
 
+        # Enforce a maximum disk size of 2048 MB
+        if disk_size > 2048:
+            disk_size = 2048
+
+        # Enforce a maximum of 2 CPU cores
+        if cpu > 2:
+            cpu = 2
+
         # Calculate price based on disk size
         price_per_mb = 0.01  # Example price per MB
         extra_mb = max(disk_size - 1024, 0)
         price = extra_mb * price_per_mb
 
-        # Create a payment entry with status pending
-        Payment.objects.create(
-            user=user,
-            amount=price,
-            status='pending'
-        )
+        if price != 0:
+            # Create a payment entry with status pending
+            Payment.objects.create(
+                user=user,
+                amount=price,
+                status='pending'
+            )
 
         if not host_username or not host_ip or not host_password:
             raise ValueError("Environment variables for host connection are not set.")
@@ -189,6 +212,14 @@ def configure_vm(request, vm_id):
         # Get the configuration data from the form
         new_memory = request.POST.get('memory')
         new_cpu = request.POST.get('cpus')
+
+        # Enforce a maximum disk size of 2048 MB
+        if new_memory > 1024:
+            new_memory = 1024
+
+        # Enforce a maximum of 2 CPU cores
+        if new_cpu > 2:
+            new_cpu = 2
 
         # Modify the VM configuration with the new values
         modify_vm_cmd = f'vboxmanage modifyvm {vm.name} --memory {new_memory} --cpus {new_cpu}'
