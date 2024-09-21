@@ -9,7 +9,7 @@
         {% csrf_token %}
         <!-- Input fields -->
         <input type="text" class="form-input" name="name" placeholder="Name" required>
-        <input type="number" class="form-input" name="disk_size" placeholder="Enter size of disk (MB)" required>
+        <input type="number" class="form-input" name="disk_size" placeholder="Disk size (MB) - max 2048" required>
         <!-- Submit button -->
         <button type="submit" class="form-button">Create</button>
     </form>

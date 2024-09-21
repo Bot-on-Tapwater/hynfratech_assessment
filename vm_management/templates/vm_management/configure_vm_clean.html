@@ -9,8 +9,8 @@
         {% csrf_token %}
         <!-- Input fields -->
         <!-- <input type="text" class="form-input" name="name" placeholder="Enter new name" required> -->
-        <input type="number" class="form-input" name="cpus" placeholder="Enter # of CPU cores" required>
-        <input type="number" class="form-input" name="memory" placeholder="Enter memory amount" required>
+        <input type="number" class="form-input" name="cpus" placeholder="CPU cores - max 2" required>
+        <input type="number" class="form-input" name="memory" placeholder="Memory - max 2048" required>
         <select name="network" class="form-input" required>
             <option value="nat">NAT</option>
             <option value="bridged">Bridged</option>

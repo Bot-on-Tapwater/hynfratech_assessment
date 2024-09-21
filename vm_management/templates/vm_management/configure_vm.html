@@ -11,12 +11,12 @@
     <form method="POST" action="{% url 'configure_vm' vm.id %}">
       {% csrf_token %}
       <div>
-        <label for="memory">Memory (MB):</label>
+        <label for="memory">Memory (MB) - max 2048:</label>
         <input type="number" id="memory" name="memory" value="1024" required />
       </div>
 
       <div>
-        <label for="cpus">CPUs:</label>
+        <label for="cpus">CPUs: max</label>
         <input type="number" id="cpus" name="cpus" value="1" required />
       </div>
 
