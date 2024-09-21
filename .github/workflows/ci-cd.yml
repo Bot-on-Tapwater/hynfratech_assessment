@@ -39,6 +39,11 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Pass secrets as environment variables
+      - name: Set environment variables
+        run: |
+          echo "SOCIAL_AUTH_GOOGLE_OAUTH2_KEY=${{ secrets.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY }}" >> $GITHUB_ENV
+
       - name: Run tests
         run: |
           python manage.py makemigrations
