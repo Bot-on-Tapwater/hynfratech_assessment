@@ -22,7 +22,48 @@ The project consists of two main Django apps:
 ### Prerequisites
 
 - Docker
+- Docker Compose (for container management)
 - Kubernetes (for deployment)
+- Minikube (for creating Kubernetes clusters locally)
+- VirtualBox (for Minikube and virtual machine management)
+- Nginx (for reverse proxy setup)
+- Certbot (for SSL certificate management)
+- PostgreSQL (Optional, since the database is managed as a Docker container)
+  
+You can find the detailed commands to install these prerequisites in the `vps_setup_commands.sh` script located in the repository.
+
+Here is a summary of the tools installed via the script:
+
+- **Docker**: 
+  Used for containerizing applications.
+  
+- **Docker Compose**: 
+  For defining and running multi-container Docker applications.
+
+- **Kubernetes (kubectl)**: 
+  Installed via Snap for managing Kubernetes clusters.
+
+- **Minikube**: 
+  Allows you to create and manage a local Kubernetes cluster for development.
+
+- **VirtualBox**: 
+  Required by Minikube for running Kubernetes in a virtualized environment.
+
+- **PostgreSQL** (Optional): 
+  Installed as a backup database option; the default setup uses a PostgreSQL container.
+
+- **Nginx**: 
+  Used as a reverse proxy for deploying your application in production.
+
+- **Certbot**: 
+  Automates the process of obtaining and renewing SSL certificates for your Nginx setup.
+
+To install these tools, you can run the commands provided in `vps_setup_commands.sh`:
+
+```bash
+# Run the setup commands from the script
+bash vps_setup_commands.sh
+```
 
 ### Local Development
 
@@ -63,66 +104,51 @@ To deploy:
 
 ## CI/CD Pipeline
 
-Our project uses a robust CI/CD pipeline to ensure smooth development and deployment processes.
+Our project uses an automated CI/CD pipeline to streamline the development and deployment process.
 
 ### CI Pipeline
 
-1. **Version Control**: We use Git for version control, with the main repository hosted on GitHub.
+1. **Version Control**: Git is used for version control, with the primary repository hosted on GitHub.
+   
+2. **Automated Testing**: Every push to the `master` branch triggers GitHub Actions:
+   - Unit tests for the `accounts` and `vm_management` apps.
+   - Integration tests to ensure all components work together.
+   - Code linting using `flake8` to maintain code standards.
 
-2. **Automated Testing**: On every push to the repository, GitHub Actions triggers our test suite:
-   - Unit tests for both `accounts` and `vm_management` apps
-   - Integration tests to ensure proper interaction between components
-   - Code linting using flake8 to maintain code quality
+3. **Environment Setup**: 
+   - A PostgreSQL service is set up during the CI process using Docker to run database-related tests.
+   - An `.env` file is automatically generated from GitHub secrets.
 
-3. **Code Quality Checks**: SonarQube is integrated to perform static code analysis, identifying potential bugs, code smells, and security vulnerabilities.
+4. **Docker Image Build**: After passing the tests:
+   - A Docker image is built using the latest code.
+   - The image is tagged with the `latest` tag.
 
-4. **Docker Image Building**: If all tests pass, a Docker image is automatically built and tagged with the commit SHA.
+5. **SonarQube**: Static code analysis is run to check for potential bugs, security vulnerabilities, and code smells.
 
 ### CD Pipeline
 
-1. **Image Push**: The Docker image is pushed to our private Docker registry.
+1. **Docker Image Push**: Upon successful builds, the Docker image is pushed to Docker Hub.
 
-2. **Deployment Trigger**: Successful image push triggers the deployment process.
+2. **SSH Key Setup**: GitHub Actions uses an SSH key for passwordless access to the VPS.
 
-3. **Kubernetes Deployment**: Our Kubernetes cluster is updated using the following process:
-   - The `django-deployment.yml` file is automatically updated with the new image tag.
-   - Kubernetes applies the updated deployment file, performing a rolling update to ensure zero downtime.
+3. **Repository Update**: The remote repository is cloned or updated on the VPS.
 
-## Kubernetes Deployment Details
+4. **Environment Setup on VPS**:
+   - The `.env` file is securely uploaded to the server.
+   - Docker Compose is run on the server to start or restart services.
 
-Our application is deployed on a Kubernetes cluster for scalability and ease of management.
+5. **Deployment**: 
+   - The Docker Compose file is executed remotely, ensuring all services are deployed correctly.
+   - If updates are needed, the Docker containers are restarted.
 
-### Kubernetes Resources
+By using this CI/CD pipeline, our development and deployment processes are automated and efficient, ensuring code quality and a seamless update process.
 
-1. **Persistent Volumes**: Defined in `pvc.yml`, these ensure data persistence across pod restarts.
-
-2. **PostgreSQL Deployment**: `postgres-deployment.yml` sets up the database service:
-   - Uses a StatefulSet for stable network identities
-   - Configures resource limits and requests
-   - Sets up environment variables for database initialization
-
-3. **Django Application Deployment**: `django-deployment.yml` deploys our main application:
-   - Defines resource limits and requests
-   - Sets up environment variables, including database connection details
-   - Configures liveness and readiness probes for better reliability
-   - Sets up an ingress for external access
-
-4. **Nginx Ingress**: Configured to route traffic to our Django service and handle SSL termination.
-
-### Scaling
-
-- Horizontal Pod Autoscaler (HPA) is set up to automatically scale the number of Django pods based on CPU utilization.
-
-### Monitoring and Logging
-
-- Prometheus is used for monitoring the Kubernetes cluster and application metrics.
-- ELK stack (Elasticsearch, Logstash, Kibana) is employed for centralized logging.
 
 ### Secrets Management
 
-- Kubernetes Secrets are used to manage sensitive information like database passwords and API keys.
+- Github Actions Secrets are used to manage sensitive information like database passwords and API keys.
 
-## Deployment Process
+## Deployment Process with Kubernetes
 
 1. **Initial Setup**: 
    ```
@@ -150,6 +176,85 @@ Our application is deployed on a Kubernetes cluster for scalability and ease of 
      kubectl scale deployment django-deployment --replicas=3
      ```
    - Automatic scaling is handled by the Horizontal Pod Autoscaler
+
+
+## Deployment Process with Docker & Nginx
+
+### 1. Initial Setup
+
+To deploy using Docker Compose:
+On the server, navigate to the project directory and run the following:
+
+```bash
+sudo docker-compose up -d
+```
+
+This will spin up the necessary containers for the application (Django, PostgreSQL, etc.).
+
+### 2. Nginx Configuration
+
+Ensure that Nginx is configured correctly to listen for the Docker containers. A sample Nginx configuration file might look like this:
+
+```nginx
+server {
+    server_name hynfratech.botontapwater.com;
+
+    location / {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_pass http://127.0.0.1:8000; # Gunicorn listens on this port
+    }
+
+    location /static/ {
+        alias /home/lab/hynfratech_assessment/static/;
+    }
+
+    location /media/ {
+        alias /home/lab/hynfratech_assessment/media/;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/hynfratech.botontapwater.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/hynfratech.botontapwater.com/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+server {
+    if ($host = hynfratech.botontapwater.com) {
+        return 301 https://$host$request_uri;
+    }
+
+    server_name hynfratech.botontapwater.com;
+    listen 80;
+    return 404; # managed by Certbot
+}
+```
+
+### 3. Updating the Application
+
+When you need to update the application:
+
+Pull the latest changes from your repository:
+```bash
+git pull
+```
+
+Restart the Docker containers:
+```bash
+sudo docker-compose down
+sudo docker-compose up -d
+```
+
+### 4. SSL and Security
+
+Nginx is configured with SSL certificates managed by Certbot. To ensure the certificates are kept up to date, use the following command:
+
+```bash
+sudo certbot renew
+```
 
 ## Project Configuration
 
@@ -194,4 +299,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## Contact
 
-www.botontapwater.com
+[www.botontapwater.com](https://www.botontapwater.com)
+
+[www.brandonmunda.me](https://www.brandonmunda.me)
