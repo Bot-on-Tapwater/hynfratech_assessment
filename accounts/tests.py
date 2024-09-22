@@ -9,6 +9,12 @@ CustomUser = get_user_model()  # This will refer to CustomUser instead of the de
 
 class UserViewsTestCase(TestCase):
     def setUp(self):
+        """
+        Set up the test client and the user and URLs to be tested
+
+        This method is called before every test and creates the test client,
+        a test user, and the URLs for the register, login, and home views.
+        """
         self.client = APIClient()
         self.username = 'testuser'
         self.password = 'securepassword'
@@ -18,6 +24,11 @@ class UserViewsTestCase(TestCase):
         self.home_url = reverse('home')
 
     def test_register_view(self):
+        """
+        Test that the register view works correctly.
+
+        Should create a new user in the database and redirect after successful registration.
+        """
         response = self.client.post(self.register_url, {
             'username': 'newuser',
             'email': 'newuser@example.com',  # Ensure you include the email field
@@ -33,6 +44,11 @@ class UserViewsTestCase(TestCase):
 
 
     def test_login_view(self):
+        """
+        Test that the login view works correctly.
+
+        Should redirect after successful login.
+        """
         response = self.client.post(self.login_url, {
             'username': self.username,
             'password': self.password,
