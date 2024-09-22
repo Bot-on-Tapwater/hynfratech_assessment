@@ -342,35 +342,27 @@ def backup_vm(request, vm_id):
         user = vm.user
         subscription = Subscription.objects.get(user=user)
     except VM.DoesNotExist:
-        # messages.error(request, "VM does not exist.")
-        # return redirect('vm_list')
         return render(request, 'accounts/access_denied.html', {'error': "VM does not exist."})
 
     # Determine which user should have their limits applied (for multi-client accounts)
     if subscription.parent_account:
         parent_account = subscription.parent_account
-        # Assuming parent_account has a related name 'managed_users' pointing to CustomUser
-        # Count backups for the parent account and all managed users
         managed_users = CustomUser.objects.filter(subscription__parent_account=parent_account)
         user_backups_count = Backup.objects.filter(user__in=managed_users).count()
         plan_limit = parent_account.subscription.rate_plan.max_backups
     else:
-        parent_account = None
-        # Count backups for the current user
         user_backups_count = Backup.objects.filter(user=user).count()
         plan_limit = subscription.rate_plan.max_backups
 
     # Check if user has reached their backup creation limit
     if user_backups_count >= plan_limit:
-        # messages.error(request, f"You've reached your backup creation limit of {plan_limit} backups.")
-        # return redirect('vm_list')
         return render(request, 'accounts/access_denied.html', {'error': f"You've reached your backup creation limit of {plan_limit} backups."})
 
     if not host_username or not host_ip or not host_password:
         raise ValueError("HOST_USER, HOST_IP, or HOST_PASSWORD environment variables are not set.")
 
     # Use vboxmanage to take a snapshot (backup)
-    snapshot_cmd = f'vboxmanage snapshot {vm.name} take --name backup'
+    snapshot_cmd = f'vboxmanage snapshot {vm.name} take {vm.name}'
     run_vboxmanage_command(host_ip, host_username, host_password, snapshot_cmd)
 
     # Create a Backup record in the database
@@ -458,17 +450,34 @@ def vm_details(request, vm_id):
     if vm.user == request.user:  # Ensure user owns the VM
         vm_info_cmd = f'vboxmanage showvminfo {vm.name}'
         vm_info_output = run_vboxmanage_command(host_ip, host_username, host_password, vm_info_cmd)
-        
-         # Process vm_info_output into a dictionary
+
+        # Process vm_info_output into a dictionary
         vm_details_dict = {}
         for line in vm_info_output.splitlines():
             if ':' in line:
                 key, value = line.split(':', 1)  # Split by the first colon
                 vm_details_dict[key.strip()] = value.strip()  # Clean up spaces
 
-        return render(request, 'vm_management/vm_details_clean.html', {'vm': vm, 'vm_details': vm_details_dict})
+        # Fetch snapshots for the VM
+        snapshots_cmd = f'vboxmanage snapshot {vm.name} list'
+        snapshots_output = run_vboxmanage_command(host_ip, host_username, host_password, snapshots_cmd)
+
+        # Process snapshots_output into a list
+        snapshots_list = []
+        for line in snapshots_output.splitlines():
+            if 'Name:' in line:
+                snapshots_list.append(line.split(':', 1)[1].strip())
+
+        # Add snapshots to the vm_details_dict
+        vm_details_dict['Snapshots'] = snapshots_list
+
+        return render(request, 'vm_management/vm_details_clean.html', {
+            'vm': vm,
+            'vm_details': vm_details_dict,
+        })
     
     return redirect('vm_list')
+
 
 def transfer_vm(vm_id, new_user_id, original_user):
     """
