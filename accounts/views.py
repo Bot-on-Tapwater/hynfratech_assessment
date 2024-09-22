@@ -29,6 +29,7 @@ def admin_required(view_func):
     @wraps(view_func)
     @login_required
     def _wrapped_view(request, *args, **kwargs):
+        
         if request.user.role == UserRole.ADMIN:
             return view_func(request, *args, **kwargs)
         else:
@@ -44,6 +45,7 @@ def admin_or_standard_user_required(view_func):
     @wraps(view_func)
     @login_required
     def _wrapped_view(request, *args, **kwargs):
+        
         if request.user.role in [UserRole.ADMIN, UserRole.STANDARD_USER]:
             return view_func(request, *args, **kwargs)
         else:
@@ -52,11 +54,24 @@ def admin_or_standard_user_required(view_func):
     return _wrapped_view
 
 def access_denied(request):
+    """
+    Render an 'Access Denied' page with a generic message.
+
+    This view is called when a user tries to access a page that requires a certain role or permission that they don't have.
+    The view renders a template with the message "You don't have permission to access this page.".
+    """
     return render(request, 'accounts/access_denied.html', {
         'error': "You don't have permission to access this page."
     })
 
 def register(request):
+    """
+    Handles user registration.
+
+    If the request is a GET, it renders a template with a form to register a new user.
+    If the request is a POST, it validates the form and creates a new user if the form is valid.
+    If the user is created successfully, it redirects to the login page.
+    """
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
@@ -70,6 +85,13 @@ def register(request):
 
 @csrf_exempt
 def login(request):
+    """
+    Handles user login.
+
+    If the request is a GET, it renders a template with a form to log in.
+    If the request is a POST, it validates the form and logs in the user if the form is valid.
+    If the user is logged in successfully, it redirects to the home page.
+    """
     if request.method == 'POST':
         form = LoginForm(request.POST)
         if form.is_valid():
@@ -83,17 +105,13 @@ def login(request):
         form = LoginForm()
     return render(request, 'accounts/login_clean.html', {'form': form})
 
-# @login_required
 def home(request):
-    # if request.user.role == UserRole.ADMIN:
-    #     # Admin-specific logic
-    #     pass
-    # elif request.user.role == UserRole.STANDARD_USER:
-    #     # Standard user-specific logic
-    #     pass
-    # elif request.user.role == UserRole.GUEST:
-    #     # Guest-specific logic
-    #     pass
+    """
+    Displays the home page.
+
+    This view is accessible to all users (anonymous and authenticated).
+    It renders a template with a greeting message.
+    """
     return render(request, 'accounts/home_clean.html')
 
 @csrf_exempt
