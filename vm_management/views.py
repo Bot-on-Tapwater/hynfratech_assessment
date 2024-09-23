@@ -138,12 +138,14 @@ def vm_list(request):
     Returns:
         HttpResponse: The rendered template with the VMs
     """
-    if request.user.role == UserRole.ADMIN:
-        # Fetch all VMs for admin users
-        user_vms = VM.objects.all()
-    else:
-        # Fetch only VMs belonging to the logged-in user for standard users
-        user_vms = VM.objects.filter(user=request.user)
+    # if request.user.role == UserRole.ADMIN:
+    #     # Fetch all VMs for admin users
+    #     user_vms = VM.objects.all()
+    # else:
+    #     # Fetch only VMs belonging to the logged-in user for standard users
+    #     user_vms = VM.objects.filter(user=request.user)
+    
+    user_vms = VM.objects.filter(user=request.user)
 
     # Pass the VMs to the template
     return render(request, 'vm_management/vm_list_clean.html', {'vms': user_vms})
